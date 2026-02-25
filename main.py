@@ -7,7 +7,7 @@ pygame.init()
 # Constants
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
-TILE_SIZE = 40
+TILE_SIZE = 20
 GRAVITY = 0.8
 JUMP_STRENGTH = -17
 PLAYER_SPEED = 5
@@ -20,8 +20,8 @@ HAZARD_COLOR = (255, 0, 0)
 
 show_controls = True
 
-START_X = 100
-START_Y = 370
+START_X = 49
+START_Y = 270
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
 pygame.display.set_caption("Platformer - Camera System")
@@ -29,30 +29,42 @@ clock = pygame.time.Clock()
 
 # --- LEVEL DESIGN ---
 LEVEL_MAP = [
-    "P                                       P",
-    "P                                       P",
-    "P                                       P",
-    "P                                       P",
-    "P    P                                  P",
-    "P    PPPP          PP                   P",
-    "P                                       P",
-    "P              P                        P",
-    "P      K       P                        P",
-    "PPPPPPPPPPPPPPPPPPPPP                   P",
-    "P                                       P",
-    "P                         PPPP          P",
-    "P                                       P",
-    "P                        PP      PP     P",
-    "P                                       P",
-    "P              PPPPPPPPPPPPPPPPPPPPPPPPPP",
-    "P              P                        P",
-    "P              P                        P",
-    "PPPPPPPPPPPPPPPP                        P"
+    "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "Pkkk                                                  P",
+    "Pkkk                                                  P",
+    "P                                                     P",
+    "P                                                     P",
+    "P                                                     P",
+    "P                                                     P",
+    "P                                                     P",
+    "P                                                     P",
+    "P                                                     P",
+    "P                           P        PP      PP       P",
+    "P                           P                         P",
+    "P                           P                         P",
+    "P                           PKKKKKKKKKKKKKKKKKK       P",
+    "PPPPP          PP           PPPPPPPPPPPPPPPPPPP       P",
+    "KKKKKKKKKKKKKKKKKKKKKKKKKKKKPPPPPPPPPPPPPPPPPPP       P",
+    "P                                                     P",
+    "P                                                     P",
+    "P                                                     P",
+    "P                                                     P",
+    "P                                                     P",
+    "P                                                     P",
+    "P                                                     P",
+    "P                                                     P",
+    "P                                                     P",
+    "P                                                     P",
+    "PPP      P     PP       PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "P                       P               ",
+    "PKKKKKKKKKKKKKKKKKKKKKKKP               ",
+    "PPPPPPPPPPPPPPPPPPPPPPPPP                        "
 ]
 
 # Parse the level map
 platforms = []
 hazards = []
+ihazards = []
 
 for row_index, row in enumerate(LEVEL_MAP):
     for col_index, cell in enumerate(row):
@@ -64,6 +76,10 @@ for row_index, row in enumerate(LEVEL_MAP):
             x = col_index * TILE_SIZE
             y = row_index * TILE_SIZE
             hazards.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
+        if cell == "k":
+            x = col_index * TILE_SIZE
+            y = row_index * TILE_SIZE
+            ihazards.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))    
 
 # --- PLAYER CLASS ---
 class Player:
@@ -73,39 +89,55 @@ class Player:
         self.vel_x = 0
         self.on_ground = False
         
+        self.accel = 0.8
+        self.air_friction = 0.8
+        self.ground_friction = 0.7
+        self.max_speed = 5
+        
         self.coyote_timer = 0
         self.coyote_max = 8  
     
     def reset_position(self):
         self.vel_y = 0
-        
+        self.vel_x = 0
         self.rect.x = START_X
         self.rect.y = START_Y
         
 
-    def update(self, platforms, hazards):
+    def update(self, platforms, hazards, ihazards):
         dx = 0
         dy = 0
 
         # Horizontal Movement
         keys = pygame.key.get_pressed()
         if keys[pygame.K_a]:
-            self.vel_x -= 1
+            self.vel_x -= self.max_speed
         if keys[pygame.K_d]:
-            self.vel_x += 1
+            self.vel_x += self.max_speed
         else:
-            self.vel_x *=9
+            if self.on_ground:  
+                self.vel_x *= self.ground_friction
+            else:
+                self.vel_x *= self.air_friction
+            
+        if self.vel_x > self.max_speed: self.vel_x = self.max_speed
+        if self.vel_x < -self.max_speed: self.vel_x = -self.max_speed
+        
+        if abs(self.vel_x) < 0.1:
+            self.vel_x = 0
 
         
         
-        self.rect.x += dx
+        self.rect.x += self.vel_x
             
         for platform in platforms:
             if self.rect.colliderect(platform):
-                if dx > 0: 
+                if self.vel_x > 0: 
                     self.rect.right = platform.left
-                elif dx < 0: 
+                    self.vel_x = 0
+                elif self.vel_x < 0: 
                     self.rect.left = platform.right
+                    self.vel_x = 0
 
         # --- JUMP LOGIC  ---
         if keys[pygame.K_SPACE] and self.coyote_timer > 0:
@@ -139,7 +171,7 @@ class Player:
         pygame.draw.rect(surface, PLAYER_COLOR, self.rect)
 
 # Create player
-player = Player(100, 100)
+player = Player(50, 50)
 running = True
 
 # Camera variables
@@ -158,8 +190,6 @@ while running:
                 player.reset_position()
             if event.key == pygame.K_TAB:
                 show_controls = True
-                
-            
             elif event.key == pygame.K_c:
                 print(f"Player Position -> X: {player.rect.x}, Y: {player.rect.y}")
 
@@ -167,12 +197,15 @@ while running:
             SCREEN_WIDTH, SCREEN_HEIGHT = event.size
             screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
        
-    player.update(platforms, hazards)
+    player.update(platforms, hazards, ihazards)
          
     for hazard in hazards:
         if player.rect.colliderect(hazard):
             player.reset_position()
 
+    for ihazard in ihazards:
+        if player.rect.colliderect(ihazard):
+            player.reset_position()
     
     
     # --- CAMERA LOGIC ---
@@ -192,6 +225,7 @@ while running:
     for hazard in hazards:
         shifted_hazard = hazard.move(-camera_x, -camera_y)
         pygame.draw.rect(screen, HAZARD_COLOR, shifted_hazard)
+        
         
     # Draw player with the camera offset applied
     shifted_player = player.rect.move(-camera_x, -camera_y)
