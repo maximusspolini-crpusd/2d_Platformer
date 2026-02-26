@@ -13,74 +13,62 @@ JUMP_STRENGTH = -17
 PLAYER_SPEED = 5
 
 # Colors
-BG_COLOR = (30, 30, 40)
+BG_COLOR = (0, 0, 0)
 PLAYER_COLOR = (50, 200, 150)
 PLATFORM_COLOR = (100, 100, 120)
 HAZARD_COLOR = (255, 0, 0)
+GOAL_COLOR = (0, 255, 0)
 
 show_controls = True
 
-START_X = 49
-START_Y = 270
+START_X = 55
+START_Y = 280
+
+current_level = 1  # Keep track of which level the player is on
+ui_font = pygame.font.SysFont("Arial", 28, bold=True)
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
 pygame.display.set_caption("Platformer - Camera System")
 clock = pygame.time.Clock()
 
-# --- LEVEL DESIGN ---
-LEVEL_MAP = [
-    "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
-    "Pkkk                                                  P",
-    "Pkkk                                                  P",
-    "P                                                     P",
-    "P                                                     P",
-    "P                                                     P",
-    "P                                                     P",
-    "P                                                     P",
-    "P                                                     P",
-    "P                                                     P",
-    "P                           P        PP      PP       P",
-    "P                           P                         P",
-    "P                           P                         P",
-    "P                           PKKKKKKKKKKKKKKKKKK       P",
-    "PPPPP          PP           PPPPPPPPPPPPPPPPPPP       P",
-    "KKKKKKKKKKKKKKKKKKKKKKKKKKKKPPPPPPPPPPPPPPPPPPP       P",
-    "P                                                     P",
-    "P                                                     P",
-    "P                                                     P",
-    "P                                                     P",
-    "P                                                     P",
-    "P                                                     P",
-    "P                                                     P",
-    "P                                                     P",
-    "P                                                     P",
-    "P                                                     P",
-    "PPP      P     PP       PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
-    "P                       P               ",
-    "PKKKKKKKKKKKKKKKKKKKKKKKP               ",
-    "PPPPPPPPPPPPPPPPPPPPPPPPP                        "
-]
+def load_level(level_number):
+    # We need to use 'global' so we can modify the lists created outside the function
+    global platforms, hazards, finish_blocks, START_X, START_Y, ihazards
+    
+    # 1. Clear the old level data
+    platforms = []
+    hazards = []
+    ihazards = []
+    finish_blocks = []
 
-# Parse the level map
-platforms = []
-hazards = []
-ihazards = []
-
-for row_index, row in enumerate(LEVEL_MAP):
-    for col_index, cell in enumerate(row):
-        if cell == "P":
-            x = col_index * TILE_SIZE
-            y = row_index * TILE_SIZE
-            platforms.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
-        if cell == "K":
-            x = col_index * TILE_SIZE
-            y = row_index * TILE_SIZE
-            hazards.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
-        if cell == "k":
-            x = col_index * TILE_SIZE
-            y = row_index * TILE_SIZE
-            ihazards.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))    
-
+    # 2. Determine which file to open
+    file_path = f"level_{level_number}.txt"
+    
+    try:
+        with open(file_path, 'r') as f:
+            level_data = [line.strip('\n') for line in f.readlines()]
+            
+        # 3. Parse the new data
+        for row_index, row in enumerate(level_data):
+            for col_index, cell in enumerate(row):
+                x, y = col_index * TILE_SIZE, row_index * TILE_SIZE
+                if cell == "P":
+                    platforms.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
+                elif cell == "K":
+                    hazards.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
+                elif cell == "k":
+                    ihazards.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
+                elif cell == "G":
+                    finish_blocks.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
+                elif cell == "S": # Optional: 'S' for Start Position
+                    START_X, START_Y = x, y
+                    
+        # 4. Put the player at the new start
+        player.reset_position()
+        
+    except FileNotFoundError:
+        print(f"Error: {file_path} not found! Returning to Level 1.")
+        load_level(1) # Loop back to start if the file doesn't exist
 # --- PLAYER CLASS ---
 class Player:
     def __init__(self, x, y):
@@ -103,10 +91,9 @@ class Player:
         self.rect.x = START_X
         self.rect.y = START_Y
         
+        
 
-    def update(self, platforms, hazards, ihazards):
-        dx = 0
-        dy = 0
+    def update(self, platforms, hazards, ihazards, goal):
 
         # Horizontal Movement
         keys = pygame.key.get_pressed()
@@ -172,6 +159,7 @@ class Player:
 
 # Create player
 player = Player(50, 50)
+load_level(current_level)
 running = True
 
 # Camera variables
@@ -197,15 +185,20 @@ while running:
             SCREEN_WIDTH, SCREEN_HEIGHT = event.size
             screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
        
-    player.update(platforms, hazards, ihazards)
+    player.update(platforms, hazards, ihazards, finish_blocks)
          
     for hazard in hazards:
         if player.rect.colliderect(hazard):
             player.reset_position()
 
-    for ihazard in ihazards:
+    for ihazard in hazards:
         if player.rect.colliderect(ihazard):
             player.reset_position()
+
+    for finish in finish_blocks:
+        if player.rect.colliderect(finish):
+            current_level += 1
+            load_level(current_level)
     
     
     # --- CAMERA LOGIC ---
@@ -215,6 +208,20 @@ while running:
     
     # Draw Everything
     screen.fill(BG_COLOR)
+    # --- DRAW UI ---
+    # 1. Create the text surface
+    level_text = ui_font.render(f"LEVEL: {current_level}", True, (255, 255, 255))
+
+    # 2. Get the rectangle of the text to position it
+    # We set the 'topright' of the text to be 20 pixels away from the screen edge
+    level_rect = level_text.get_rect(topright=(SCREEN_WIDTH - 20, 20))
+
+    # 3. Draw a small dark background box behind the text (optional, for readability)
+    bg_rect = level_rect.inflate(20, 10) # Makes the box slightly larger than the text
+    pygame.draw.rect(screen, (0, 0, 0, 150), bg_rect, border_radius=5)
+
+    # 4. Blit (draw) the text onto the screen
+    screen.blit(level_text, level_rect)
     
     # Draw platforms with the camera offset applied
     for platform in platforms:
@@ -226,10 +233,16 @@ while running:
         shifted_hazard = hazard.move(-camera_x, -camera_y)
         pygame.draw.rect(screen, HAZARD_COLOR, shifted_hazard)
         
+    for finish in finish_blocks:
+        shifted_finish = finish.move(-camera_x, -camera_y)
+        pygame.draw.rect(screen, GOAL_COLOR, shifted_finish)
+        
         
     # Draw player with the camera offset applied
     shifted_player = player.rect.move(-camera_x, -camera_y)
     pygame.draw.rect(screen, PLAYER_COLOR, shifted_player)
+    
+   
     
     if show_controls:
         # Create a semi-transparent dark overlay
