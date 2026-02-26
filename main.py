@@ -35,7 +35,7 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE
 pygame.display.set_caption("Platformer - Camera System")
 clock = pygame.time.Clock()
 
-def load_level(level_number, current_level):
+def load_level(level_number):
     global platforms, hazards, finish_blocks, START_X, START_Y, ihazards
     
 
@@ -185,9 +185,14 @@ while running:
         if event.type == pygame.KEYDOWN:
             show_controls = False
             if event.key == pygame.K_r:
-                player.reset_position()
+                load_level(current_level)
             if event.key == pygame.K_TAB:
                 show_controls = True
+            if event.key == pygame.K_g:
+                current_level += 1
+                load_level(current_level)
+                if current_level > 4:
+                    current_level = 1
             elif event.key == pygame.K_c:
                 print(f"Player Position -> X: {player.rect.x}, Y: {player.rect.y}")
 
@@ -209,7 +214,7 @@ while running:
         if player.rect.colliderect(finish):
             current_level += 1
             load_level(current_level)
-            if current_level > 3:
+            if current_level > 4:
                 current_level = 1
 
             
@@ -264,16 +269,13 @@ while running:
     camera_y = player.rect.y - (SCREEN_HEIGHT // 2)
     screen.fill(BG_COLOR)
     
-    # --- DRAW UI ---
-    level_text = ui_font.render(f"LEVEL: {current_level}", True, (255, 255, 255))
-    level_rect = level_text.get_rect(topright=(SCREEN_WIDTH - 20, 20))
 
 
-    bg_rect = level_rect.inflate(20, 10) 
-    pygame.draw.rect(screen, (0, 0, 0, 150), bg_rect, border_radius=5)
+
+
 
     
-    screen.blit(level_text, level_rect)
+
     
    
     for platform in platforms:
@@ -323,6 +325,13 @@ while running:
             screen.blit(text_surf, text_rect)
             
         
+
+    # --- DRAW UI ---
+    level_text = ui_font.render(f"LEVEL: {current_level}", True, (255, 255, 255))
+    level_rect = level_text.get_rect(topright=(SCREEN_WIDTH - 20, 20))
+    bg_rect = level_rect.inflate(20, 10) 
+    pygame.draw.rect(screen, (0, 0, 0, 0), bg_rect, border_radius=5)
+    screen.blit(level_text, level_rect)
 
     pygame.display.flip()
     clock.tick(60)

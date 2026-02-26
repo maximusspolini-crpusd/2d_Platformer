@@ -8,69 +8,69 @@ PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP       P
 P                                                                              P
 P                                                              K               P
 P                                                                         PPPPPP
-P                                                                         P    P
-P                K      K           K                 K                   P    P
+P                                                                         PPPPPP
+P                K      K           K                 K                   PPPPPP
 P          PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP
 P                                                      K                       P
 PPPP                           K                       K                       P
-P  P                                                                           P
-P  P                                                                           P
-P  P   K            K                         K                                P
+PPPP                                                                           P
+PPPP                                                                           P
+PPPP   K            K                         K                                P
 PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP         P
 P                                                                              P
 P                                                          K                   P
 P                            K                                            PPPPPP
-P                                                                         P    P
-P                    K                K             K             K       P    P
+P                                                                         PPPPPP
+P                    K                K             K             K       PPPPPP
 P          PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP
 P                                                                              P
 PPPPP                                                                          P
-P   P                                                                          P
-P   P                                                                          P
-P   P K    K        K        K             K             K     K               P
+PPPPP                                                                          P
+PPPPP                                                                          P
+PPPPP K    K        K        K             K             K     K               P
 PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP       P
 P                                                                              P
 P                                                                              P
 P                                                                              P
 P                                                                         PPPPPP
-P                                                                         P    P
-P                                                                         P    P
-P             KK                 K       K              K         K       P    P
+P                                                                         PPPPPP
+P                                                                         PPPPPP
+P             KK                 K       K              K         K       PPPPPP
 P          PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP
 P                                                                              P
 P                                                                              P
 PPPPPP                                                                         P
-P    P                                                                         P
-P    P  K   K        K         K                    K            K             P
+PPPPPP                                                                         P
+PPPPPP  K   K        K         K                    K            K             P
 PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP         P
 P                                                                              P
 P                                                                         PPPPPP
-P                                                                         P    P
-P                         K                                               P    P
-P               K         K              K                    K           P    P
+P                                                                         PPPPPP
+P                         K                                               PPPPPP
+P               K         K              K                    K           PPPPPP
 P          PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP
 P                                                                              P
 PPPPP                                                                          P
-P   P                                                                           P
-P   P                                                                          P
-P   P                                                                          P
-P   P            KK                             KKK                            P
+PPPPP                                                                          P
+PPPPP                                                                          P
+PPPPP                                                                          P
+PPPPP            KK                             KKK                            P
 PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP       P
 P                                                                              P
 P                                                                              P
 P                                                                         PPPPPP
-P                                                                         P    P
-P            K                   K            K                  K        P    P
+P                                                                         PPPPPP
+P            K                   K            K                  K        PPPPPP
 P          PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP
 P                                                                              P
 P                                                                              P
 PPPPP                                                                          P
-P   P                                                                          P
-P   P   K        K        K            K           K         K                 P
+PPPPP                                                                          P
+PPPPP   K        K        K            K           K         K                 P
 PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP       P
 P                                                                              P
 P                                                                              P
 P                                                                          PPPPP
-P                                                                          P   P
-P     S        K              K            K                       K       P   P
+P                                                                          PPPPP
+P     S        K              K            K                       K       PPPPP
 PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP
