@@ -7,7 +7,7 @@ pygame.init()
 # Constants
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
-TILE_SIZE = 20
+TILE_SIZE = 30
 GRAVITY = 0.8
 JUMP_STRENGTH = -17
 PLAYER_SPEED = 5
@@ -19,35 +19,38 @@ PLATFORM_COLOR = (100, 100, 120)
 HAZARD_COLOR = (255, 0, 0)
 GOAL_COLOR = (0, 255, 0)
 
+# Cooldown settings
+teleport_cooldown = 100  # 100 milliseconds = .1 seconds
+last_teleport_time = 0   
+
 show_controls = True
 
 START_X = 55
 START_Y = 280
 
-current_level = 1  # Keep track of which level the player is on
+current_level = 1  
 ui_font = pygame.font.SysFont("Arial", 28, bold=True)
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
 pygame.display.set_caption("Platformer - Camera System")
 clock = pygame.time.Clock()
 
-def load_level(level_number):
-    # We need to use 'global' so we can modify the lists created outside the function
+def load_level(level_number, current_level):
     global platforms, hazards, finish_blocks, START_X, START_Y, ihazards
     
-    # 1. Clear the old level data
+
     platforms = []
     hazards = []
     ihazards = []
     finish_blocks = []
 
-    # 2. Determine which file to open
-    file_path = f"levels/"f"level_{level_number}.txt"
+
+    file_path = f"levels/{level_number}.txt"
     try:
         with open(file_path, 'r') as f:
             level_data = [line.strip('\n') for line in f.readlines()]
             
-        # 3. Parse the new data
+
         for row_index, row in enumerate(level_data):
             for col_index, cell in enumerate(row):
                 x, y = col_index * TILE_SIZE, row_index * TILE_SIZE
@@ -59,7 +62,7 @@ def load_level(level_number):
                     ihazards.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
                 elif cell == "G":
                     finish_blocks.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
-                elif cell == "S": # Optional: 'S' for Start Position
+                elif cell == "S": 
                     START_X, START_Y = x, y
                     
         # 4. Put the player at the new start
@@ -67,7 +70,9 @@ def load_level(level_number):
         
     except FileNotFoundError:
         print(f"Error: {file_path} not found! Returning to Level 1.")
-        load_level(1) # Loop back to start if the file doesn't exist
+        
+        load_level(1) 
+        
 # --- PLAYER CLASS ---
 class Player:
     def __init__(self, x, y):
@@ -94,7 +99,7 @@ class Player:
 
     def update(self, platforms, hazards, ihazards, goal):
 
-        # Horizontal Movement
+
         keys = pygame.key.get_pressed()
         if keys[pygame.K_a]:
             self.vel_x -= self.max_speed
@@ -111,6 +116,12 @@ class Player:
         
         if abs(self.vel_x) < 0.1:
             self.vel_x = 0
+            
+        #terminal velo
+        if self.vel_y > 15:
+            self.vel_y = 15
+
+        dy = self.vel_y
 
         
         
@@ -131,11 +142,11 @@ class Player:
             self.coyote_timer = 0  
             self.on_ground = False
 
-        # Apply Gravity
+
         self.vel_y += GRAVITY
         dy = self.vel_y
 
-        # Vertical Movement
+
         self.rect.y += dy
         self.on_ground = False 
         
@@ -156,12 +167,12 @@ class Player:
     def draw(self, surface):
         pygame.draw.rect(surface, PLAYER_COLOR, self.rect)
 
-# Create player
+
 player = Player(50, 50)
 load_level(current_level)
 running = True
 
-# Camera variables
+
 camera_x = 0
 camera_y = 0
 
@@ -198,33 +209,75 @@ while running:
         if player.rect.colliderect(finish):
             current_level += 1
             load_level(current_level)
+            if current_level > 3:
+                current_level = 1
+
+            
+            
+            
+            
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+
+# Inside your 'while running' event loop:
+    if event.type == pygame.MOUSEBUTTONDOWN:
+        current_time = pygame.time.get_ticks()
+        
+        # Check if the cooldown has passed
+        if current_time - last_teleport_time >= teleport_cooldown:
+            mx, my = pygame.mouse.get_pos()
+            
+            # Teleport player (accounting for camera offset)
+            player.rect.x = mx + camera_x
+            player.rect.y = my + camera_y
+            player.vel_y = 0
+            
+            # Update the timestamp
+            last_teleport_time = current_time
+
+        else:
+            seconds_left = (teleport_cooldown - (current_time - last_teleport_time)) / 1000
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+                
+    
     
     
     # --- CAMERA LOGIC ---
-    # Calculate the camera offset so the player is always in the center of the screen
     camera_x = player.rect.x - (SCREEN_WIDTH // 2)
     camera_y = player.rect.y - (SCREEN_HEIGHT // 2)
-    
-    # Draw Everything
     screen.fill(BG_COLOR)
+    
     # --- DRAW UI ---
-    # 1. Create the text surface
     level_text = ui_font.render(f"LEVEL: {current_level}", True, (255, 255, 255))
-
-    # 2. Get the rectangle of the text to position it
-    # We set the 'topright' of the text to be 20 pixels away from the screen edge
     level_rect = level_text.get_rect(topright=(SCREEN_WIDTH - 20, 20))
 
-    # 3. Draw a small dark background box behind the text (optional, for readability)
-    bg_rect = level_rect.inflate(20, 10) # Makes the box slightly larger than the text
+
+    bg_rect = level_rect.inflate(20, 10) 
     pygame.draw.rect(screen, (0, 0, 0, 150), bg_rect, border_radius=5)
 
-    # 4. Blit (draw) the text onto the screen
+    
     screen.blit(level_text, level_rect)
     
-    # Draw platforms with the camera offset applied
+   
     for platform in platforms:
-        # .move() creates a temporary rectangle shifted by the camera amount
+        
         shifted_platform = platform.move(-camera_x, -camera_y)
         pygame.draw.rect(screen, PLATFORM_COLOR, shifted_platform)
         
@@ -237,23 +290,22 @@ while running:
         pygame.draw.rect(screen, GOAL_COLOR, shifted_finish)
         
         
-    # Draw player with the camera offset applied
+
     shifted_player = player.rect.move(-camera_x, -camera_y)
     pygame.draw.rect(screen, PLAYER_COLOR, shifted_player)
     
    
     
     if show_controls:
-        # Create a semi-transparent dark overlay
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        overlay.set_alpha(180) # 0 is invisible, 255 is solid
+        overlay.set_alpha(180)
         overlay.fill((0, 0, 0))
         screen.blit(overlay, (0,0))
 
-        # Setup Font
+
         instr_font = pygame.font.SysFont("Arial", 30, bold=True)
         
-        # Render instructions
+
         lines = [
             "CONTROLS",
             "Tab - Show this agan",
@@ -267,7 +319,6 @@ while running:
 
         for i, line in enumerate(lines):
             text_surf = instr_font.render(line, True, (255, 255, 255))
-            # Center the text
             text_rect = text_surf.get_rect(center=(SCREEN_WIDTH//2, 150 + (i * 40)))
             screen.blit(text_surf, text_rect)
             

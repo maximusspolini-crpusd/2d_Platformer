@@ -1,0 +1,99 @@
+PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP
+P                  G                   P
+P                                      P
+P                PPPPP                 P
+P                                      P
+P         PPPPP           PPPPP        P
+P                                      P
+P    K              K             K    P
+P  PPPPP          PPPPP         PPPPP  P
+P                                      P
+P                                      P
+P         PPPPP           PPPPP        P
+P                                      P
+P                KKKKK                 P
+P                PPPPP                 P
+P                                      P
+P    PPPPP                             P
+P             PPPPP           PPPPP    P
+P                                      P
+P       K                              P
+P     PPPPP          PPPPP             P
+P                                      P
+P                                      P
+P             PPPPP                    P
+P                                      P
+P    PPPPP            KKKKK            P
+P                     PPPPP            P
+P                                      P
+P            PPPPP           PPPPP     P
+P                                      P
+P    K                                 P
+P  PPPPP             PPPPP             P
+P                                      P
+P           PPPPP                      P
+P                                      P
+P                     PPPPP            P
+P                                      P
+P    PPPPP                             P
+P             KKKKKKKKKK               P
+P             PPPPPPPPPP               P
+P                                      P
+P                                      P
+P    PPPPP            PPPPP            P
+P                                      P
+P             K                        P
+P           PPPPP             PPPPP    P
+P                                      P
+P                                      P
+P    PPPPP           PPPPP             P
+P                                      P
+P             K                        P
+P           PPPPP                      P
+P                                      P
+P                                      P
+P    PPPPP                             P
+P             PPPPP          PPPPP     P
+P                                      P
+P                      K               P
+P                    PPPPP             P
+P                                      P
+P           PPPPP                      P
+P                                      P
+P    PPPPP            PPPPP            P
+P                              PPPPP   P
+P             KKKKK                    P
+P             PPPPP                    P
+P                                      P
+P                                      P
+P    PPPPP                   PPPPP     P
+P             PPPPP                    P
+P                                      P
+P                      PPPPP           P
+P             K                        P
+P           PPPPP                      P
+P                                      P
+P                                      P
+P    PPPPP            PPPPP            P
+P                                      P
+P             PPPPP                    P
+P                                      P
+P    K                                 P
+P  PPPPP             PPPPP             P
+P                                      P
+P                                      P
+P           PPPPP           PPPPP      P
+P                                      P
+P    PPPPP                             P
+P             KKKKK                    P
+P             PPPPP                    P
+P                                      P
+P                                      P
+P    PPPPP           PPPPP             P
+P                                      P
+P             K                        P
+P           PPPPP                      P
+P                                      P
+P    S                                 P
+P  PPPPP                               P
+PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP
