@@ -42,8 +42,7 @@ def load_level(level_number):
     finish_blocks = []
 
     # 2. Determine which file to open
-    file_path = f"level_{level_number}.txt"
-    
+    file_path = f"levels/"f"level_{level_number}.txt"
     try:
         with open(file_path, 'r') as f:
             level_data = [line.strip('\n') for line in f.readlines()]
