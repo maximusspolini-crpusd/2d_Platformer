@@ -229,15 +229,16 @@ while running:
             if event.y > 0: zoom = min(2.0, zoom + 0.1)
             elif event.y < 0: zoom = max(0.2, zoom - 0.1)
 
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            current_time = pygame.time.get_ticks()
-            if current_time - last_teleport_time >= teleport_cooldown:
-                mx, my = pygame.mouse.get_pos()
-                # Use inverse math to find where we clicked in the real world
-                tx, ty = get_world_coords(mx, my, camera_x, camera_y, zoom)
-                player.rect.center = (tx, ty) # Teleport center to mouse
-                player.vel_y = 0
-                last_teleport_time = current_time
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_f:
+                current_time = pygame.time.get_ticks()
+                if current_time - last_teleport_time >= teleport_cooldown:
+                    mx, my = pygame.mouse.get_pos()
+                    # Use inverse math to find where we clicked in the real world
+                    tx, ty = get_world_coords(mx, my, camera_x, camera_y, zoom)
+                    player.rect.center = (tx, ty) # Teleport center to mouse
+                    player.vel_y = 0
+                    last_teleport_time = current_time
 
     # 2. UPDATES
     player.update(platforms, hazards, ihazards, finish_blocks)
