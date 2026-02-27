@@ -25,6 +25,32 @@ last_teleport_time = 0
 
 show_controls = True
 
+
+
+
+
+zoom = 1.0  
+
+
+
+def get_screen_coords(x, y, camera_x, camera_y, zoom):
+    # This math MUST be: (Position - Camera) * Zoom + Center
+    screen_x = (x - camera_x) * zoom + (SCREEN_WIDTH / 2)
+    screen_y = (y - camera_y) * zoom + (SCREEN_HEIGHT / 2)
+    return screen_x, screen_y
+
+
+def get_world_coords(mouse_x, mouse_y, camera_x, camera_y, zoom):
+    # 1. Move the origin back from screen center to top-left
+    # 2. Divide by zoom to "un-scale" the distance
+    # 3. Add the camera position to get the actual world coordinate
+    world_x = (mouse_x - (SCREEN_WIDTH / 2)) / zoom + camera_x
+    world_y = (mouse_y - (SCREEN_HEIGHT / 2)) / zoom + camera_y
+    return world_x, world_y
+
+
+
+
 START_X = 55
 START_Y = 280
 
@@ -173,11 +199,14 @@ load_level(current_level)
 running = True
 
 
-camera_x = 0
-camera_y = 0
+
+# Calculate camera based on player's NEW position
+camera_x = player.rect.centerx
+camera_y = player.rect.centery
 
 # --- MAIN GAME LOOP ---
 while running:
+    # 1. HANDLE EVENTS (One loop for everything!)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -185,159 +214,90 @@ while running:
         if event.type == pygame.KEYDOWN:
             show_controls = False
             if event.key == pygame.K_r:
+                player.reset_position()
+            if event.key == pygame.K_g:
+                current_level = (current_level % 4) + 1 # Loops 1-4
                 load_level(current_level)
             if event.key == pygame.K_TAB:
                 show_controls = True
-            if event.key == pygame.K_g:
-                current_level += 1
-                load_level(current_level)
-                if current_level > 4:
-                    current_level = 1
-            elif event.key == pygame.K_c:
-                print(f"Player Position -> X: {player.rect.x}, Y: {player.rect.y}")
 
         if event.type == pygame.VIDEORESIZE:
             SCREEN_WIDTH, SCREEN_HEIGHT = event.size
             screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
-       
+
+        if event.type == pygame.MOUSEWHEEL:
+            if event.y > 0: zoom = min(2.0, zoom + 0.1)
+            elif event.y < 0: zoom = max(0.2, zoom - 0.1)
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            current_time = pygame.time.get_ticks()
+            if current_time - last_teleport_time >= teleport_cooldown:
+                mx, my = pygame.mouse.get_pos()
+                # Use inverse math to find where we clicked in the real world
+                tx, ty = get_world_coords(mx, my, camera_x, camera_y, zoom)
+                player.rect.center = (tx, ty) # Teleport center to mouse
+                player.vel_y = 0
+                last_teleport_time = current_time
+
+    # 2. UPDATES
     player.update(platforms, hazards, ihazards, finish_blocks)
-         
-    for hazard in hazards:
-        if player.rect.colliderect(hazard):
-            player.reset_position()
+    
+    # Camera stays locked to player center in World Space
+    camera_x = player.rect.centerx
+    camera_y = player.rect.centery
 
-    for ihazard in hazards:
-        if player.rect.colliderect(ihazard):
+    # Check Hazards & Goals
+    for h in hazards + ihazards:
+        if player.rect.colliderect(h):
             player.reset_position()
-
     for finish in finish_blocks:
         if player.rect.colliderect(finish):
-            current_level += 1
+            current_level = (current_level % 4) + 1
             load_level(current_level)
-            if current_level > 4:
-                current_level = 1
 
-            
-            
-            
-            
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-
-# Inside your 'while running' event loop:
-    if event.type == pygame.MOUSEBUTTONDOWN:
-        current_time = pygame.time.get_ticks()
-        
-        # Check if the cooldown has passed
-        if current_time - last_teleport_time >= teleport_cooldown:
-            mx, my = pygame.mouse.get_pos()
-            
-            # Teleport player (accounting for camera offset)
-            player.rect.x = mx + camera_x
-            player.rect.y = my + camera_y
-            player.vel_y = 0
-            
-            # Update the timestamp
-            last_teleport_time = current_time
-
-        else:
-            seconds_left = (teleport_cooldown - (current_time - last_teleport_time)) / 1000
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-                
-    
-    
-    
-    # --- CAMERA LOGIC ---
-    camera_x = player.rect.x - (SCREEN_WIDTH // 2)
-    camera_y = player.rect.y - (SCREEN_HEIGHT // 2)
+    # 3. DRAWING
     screen.fill(BG_COLOR)
-    
+    current_tile_size = TILE_SIZE * zoom
 
-
-
-
-
-    
-
-    
-   
-    for platform in platforms:
+    # Draw Hazards
+    for h in hazards:
+        sx, sy = get_screen_coords(h.x, h.y, camera_x, camera_y, zoom)
+        pygame.draw.rect(screen, HAZARD_COLOR, (sx, sy, current_tile_size, current_tile_size))
         
-        shifted_platform = platform.move(-camera_x, -camera_y)
-        pygame.draw.rect(screen, PLATFORM_COLOR, shifted_platform)
-        
-    for hazard in hazards:
-        shifted_hazard = hazard.move(-camera_x, -camera_y)
-        pygame.draw.rect(screen, HAZARD_COLOR, shifted_hazard)
-        
-    for finish in finish_blocks:
-        shifted_finish = finish.move(-camera_x, -camera_y)
-        pygame.draw.rect(screen, GOAL_COLOR, shifted_finish)
-        
-        
+    # Draw Goals
+    for g in finish_blocks:
+        sx, sy = get_screen_coords(g.x, g.y, camera_x, camera_y, zoom)
+        pygame.draw.rect(screen, GOAL_COLOR, (sx, sy, current_tile_size, current_tile_size))
 
-    shifted_player = player.rect.move(-camera_x, -camera_y)
-    pygame.draw.rect(screen, PLAYER_COLOR, shifted_player)
-    
-   
-    
+    # Draw Platforms
+    for p in platforms:
+        sx, sy = get_screen_coords(p.x, p.y, camera_x, camera_y, zoom)
+        pygame.draw.rect(screen, PLATFORM_COLOR, (sx, sy, current_tile_size, current_tile_size))
+
+    # Draw Player (Centered by the math in get_screen_coords)
+    px, py = get_screen_coords(player.rect.x, player.rect.y, camera_x, camera_y, zoom)
+    scaled_p_width = player.rect.width * zoom
+    scaled_p_height = player.rect.height * zoom
+    pygame.draw.rect(screen, PLAYER_COLOR, (px, py, scaled_p_width, scaled_p_height))
+
+    # 4. UI (Drawn LAST - No zoom applied)
     if show_controls:
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         overlay.set_alpha(180)
         overlay.fill((0, 0, 0))
         screen.blit(overlay, (0,0))
-
-
-        instr_font = pygame.font.SysFont("Arial", 30, bold=True)
-        
-
-        lines = [
-            "CONTROLS",
-            "Tab - Show this agan",
-            "A / D - Move Left & Right",
-            "SPACE - Jump",
-            "R - Reset Position",
-            "C - Print Coordinates",
-            "",
-            "Press any key to START"
-        ]
-
-        for i, line in enumerate(lines):
-            text_surf = instr_font.render(line, True, (255, 255, 255))
-            text_rect = text_surf.get_rect(center=(SCREEN_WIDTH//2, 150 + (i * 40)))
-            screen.blit(text_surf, text_rect)
-            
-        
-
-    # --- DRAW UI ---
+        # ... (rest of your instructions code)
+    
+    # Transparent UI Box for Level Text
     level_text = ui_font.render(f"LEVEL: {current_level}", True, (255, 255, 255))
-    level_rect = level_text.get_rect(topright=(SCREEN_WIDTH - 20, 20))
-    bg_rect = level_rect.inflate(20, 10) 
-    pygame.draw.rect(screen, (0, 0, 0, 0), bg_rect, border_radius=5)
-    screen.blit(level_text, level_rect)
+    text_rect = level_text.get_rect(topright=(SCREEN_WIDTH - 20, 20))
+    # Create the transparent background surface
+    ui_bg = pygame.Surface(text_rect.inflate(20, 10).size, pygame.SRCALPHA)
+    ui_bg.fill((255, 255, 255, 50)) # Very subtle white tint
+    screen.blit(ui_bg, text_rect.move(-10, -5))
+    screen.blit(level_text, text_rect)
 
     pygame.display.flip()
     clock.tick(60)
-
-
-        
-
 
 pygame.quit()
