@@ -286,7 +286,25 @@ while running:
         overlay.set_alpha(180)
         overlay.fill((0, 0, 0))
         screen.blit(overlay, (0,0))
-        # ... (rest of your instructions code)
+
+        instr_font = pygame.font.SysFont("Arial", 30, bold=True)
+        
+
+        lines = [
+            "CONTROLS",
+            "Tab - Show this agan",
+            "A / D - Move Left & Right",
+            "SPACE - Jump",
+            "R - Reset Position",
+            "C - Print Coordinates",
+            "",
+            "Press any key to START"
+        ]
+
+        for i, line in enumerate(lines):
+            text_surf = instr_font.render(line, True, (255, 255, 255))
+            text_rect = text_surf.get_rect(center=(SCREEN_WIDTH//2, 150 + (i * 40)))
+            screen.blit(text_surf, text_rect)
     
     # Transparent UI Box for Level Text
     level_text = ui_font.render(f"LEVEL: {current_level}", True, (255, 255, 255))
