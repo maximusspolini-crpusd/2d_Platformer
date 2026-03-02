@@ -113,13 +113,14 @@ class Player:
         self.max_speed = 5
         
         self.coyote_timer = 0
-        self.coyote_max = 8  
+        self.coyote_max = 60
     
     def reset_position(self):
         self.vel_y = 0
         self.vel_x = 0
         self.rect.x = START_X
         self.rect.y = START_Y
+        
         
         
 
@@ -200,6 +201,8 @@ running = True
 
 
 
+
+
 # Calculate camera based on player's NEW position
 camera_x = player.rect.centerx
 camera_y = player.rect.centery
@@ -214,7 +217,7 @@ while running:
         if event.type == pygame.KEYDOWN:
             show_controls = False
             if event.key == pygame.K_r:
-                player.reset_position()
+                load_level(current_level)
             if event.key == pygame.K_g:
                 current_level = (current_level % 4) + 1 # Loops 1-4
                 load_level(current_level)

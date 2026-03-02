@@ -14,13 +14,14 @@ P                                                                               
 P                                                                                                                      P
 PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP                P
 P                                                                                                                      P
-P                                                                                                                      P
-P                                                                                                                      P
+P                                                                                                           PPPPPPP    P
+P                                             K                                                                        P
+P                       K  K     K       K                                                                             P
 P            PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP
 P                                                                                                     P                P
 P  PPPP                                                                                               P                P
-P                                                                                                     P                P
-P                                                                                                     P                P
+P                     K                                                                               P                P
+P             K               K                  K                                                    P                P
 P    PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP       P                P
 P    P                                                                                        P       P                P
 P    P                                                                                        P       P                P
@@ -36,20 +37,20 @@ P            PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP             PPPPPPPPPPP
 P                                                                                                                      P
 P                                                                                                                      P
 P                                                                                                                      P
-P            PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP                P
+PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP                             P
+P                                                                                                     P                P
+P                                                                                                     P                P
+P                                                         PPPP        PPP                             P                P
+P                               PPPPP       PP                                 PPP         PPPPPP     P                P
+P                         PPP                       PPP          PPP                                  P                P
+P                 PPP                                                                                 P                P
+P              KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK  PPP           P                P
+P       PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP                P                P
 P                                                                                                     P                P
 P                                                                                                     P                P
 P                                                                                                     P                P
 P                                                                                                     P                P
-P                                                                                                     P                P
-P                                                                                                     P                P
-P                                                                                                     P                P
-P    PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP       P                P
-P                                                                                                     P                P
-P                                                                                                     P                P
-P                                                                                                     P                P
-P                                                                                                     P                P
-PPPP                            PPP          PPP                                                      P                P
+PPPPPP                          PPP          PPP                                                      P                P
 P                                                                                                     P                P
 P              PPP      PPP            PP              P      PPP    P      PPP                       P                P
 P            KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK                  P                P
