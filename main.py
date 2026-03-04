@@ -203,13 +203,13 @@ running = True
 
 
 
-# Calculate camera based on player's NEW position
+
 camera_x = player.rect.centerx
 camera_y = player.rect.centery
 
 # --- MAIN GAME LOOP ---
 while running:
-    # 1. HANDLE EVENTS (One loop for everything!)
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -232,7 +232,7 @@ while running:
             if event.y > 0: zoom = min(2.0, zoom + 0.1)
             elif event.y < 0: zoom = max(0.2, zoom - 0.1)
 
-        if event.type == pygame.KEYDOWN:
+    """ if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_f:
                 current_time = pygame.time.get_ticks()
                 if current_time - last_teleport_time >= teleport_cooldown:
@@ -241,7 +241,7 @@ while running:
                     tx, ty = get_world_coords(mx, my, camera_x, camera_y, zoom)
                     player.rect.center = (tx, ty) # Teleport center to mouse
                     player.vel_y = 0
-                    last_teleport_time = current_time
+                    last_teleport_time = current_time"""
 
     # 2. UPDATES
     player.update(platforms, hazards, ihazards, finish_blocks)
