@@ -1,13 +1,15 @@
 import pygame
 
 
-# Initialize Pygame
+
 pygame.init()
 
 # Constants
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 TILE_SIZE = 30
+CHECKPOINT_SIZE_x = 30
+CHECKPOINT_SIZE_y = 90
 GRAVITY = 0.8
 JUMP_STRENGTH = -17
 PLAYER_SPEED = 5
@@ -18,12 +20,13 @@ PLAYER_COLOR = (50, 200, 150)
 PLATFORM_COLOR = (100, 100, 120)
 HAZARD_COLOR = (255, 0, 0)
 GOAL_COLOR = (0, 255, 0)
+checkpoint_color = (255, 255, 255)
 
-# Cooldown settings
+
 teleport_cooldown = 100  # 100 milliseconds = .1 seconds
 last_teleport_time = 0   
 
-show_controls = True
+controls_showing = True
 
 
 
@@ -51,8 +54,8 @@ def get_world_coords(mouse_x, mouse_y, camera_x, camera_y, zoom):
 
 
 
-START_X = 55
-START_Y = 280
+START_X = 0
+START_Y = 0
 
 current_level = 1  
 ui_font = pygame.font.SysFont("Arial", 28, bold=True)
@@ -62,13 +65,16 @@ pygame.display.set_caption("Platformer - Camera System")
 clock = pygame.time.Clock()
 
 def load_level(level_number):
-    global platforms, hazards, finish_blocks, START_X, START_Y, ihazards
+    global platforms, hazards, finish_blocks, START_X, START_Y, ihazards, checkpoints
     
 
     platforms = []
     hazards = []
     ihazards = []
     finish_blocks = []
+    checkpoints = []
+
+
 
 
     file_path = f"levels/{level_number}.txt"
@@ -90,14 +96,55 @@ def load_level(level_number):
                     finish_blocks.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
                 elif cell == "S": 
                     START_X, START_Y = x, y
+                elif cell == "C":
+                    checkpoints.append(pygame.Rect(x, y, CHECKPOINT_SIZE_x, CHECKPOINT_SIZE_y))
                     
-        # 4. Put the player at the new start
+
         player.reset_position()
         
     except FileNotFoundError:
         print(f"Error: {file_path} not found! Returning to Level 1.")
         
         load_level(1) 
+        
+        
+
+        
+        
+# ---------------------
+#   Made by me
+# ---------------------
+
+def show_controls(controls_showing):
+    if controls_showing:
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        overlay.set_alpha(180)
+        overlay.fill((0, 0, 0))
+        screen.blit(overlay, (0,0))
+
+        instr_font = pygame.font.SysFont("Arial", 30, bold=True)
+        
+
+        lines = [
+            "CONTROLS",
+            "Tab - Show this agan",
+            "A / D - Move Left & Right",
+            "SPACE - Jump",
+            "R - Restart Level",
+            "",
+            "THIS IS MY REMINDER THAT THE DEBUG STUFF IS STILL IN THE GAME",
+            "",
+            "Press any key to EXIT"
+        ]
+
+        for i, line in enumerate(lines):
+            text_surf = instr_font.render(line, True, (255, 255, 255))
+            text_rect = text_surf.get_rect(center=(SCREEN_WIDTH//2, 150 + (i * 40)))
+            screen.blit(text_surf, text_rect)
+
+# -------------------
+# made by ai
+# -------------------
         
 # --- PLAYER CLASS ---
 class Player:
@@ -114,7 +161,10 @@ class Player:
         
         self.coyote_timer = 0
         self.coyote_max = 60
-    
+        
+    # -------------------------
+    #   Made by me
+    # -------------------------
     def reset_position(self):
         self.vel_y = 0
         self.vel_x = 0
@@ -123,7 +173,10 @@ class Player:
         
         
         
-
+    # -------------------------
+    #   Made by AI
+    # ------------------------
+    
     def update(self, platforms, hazards, ihazards, goal):
 
 
@@ -213,17 +266,27 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-            
+        # ----------------------------
+        #   Made by me
+        # ----------------------------
+        
+        
+        # SKIP LEVEL IS A DEBUG FEATURE
         if event.type == pygame.KEYDOWN:
-            show_controls = False
+            controls_showing = False
             if event.key == pygame.K_r:
                 load_level(current_level)
             if event.key == pygame.K_g:
-                current_level = (current_level % 4) + 1 # Loops 1-4
+                current_level = (current_level + 1)
+                if current_level > 4:
+                    current_level = 1
                 load_level(current_level)
             if event.key == pygame.K_TAB:
-                show_controls = True
+                controls_showing = True
 
+        # ----------------------------
+        #   Made by AI 
+        # ----------------------------
         if event.type == pygame.VIDEORESIZE:
             SCREEN_WIDTH, SCREEN_HEIGHT = event.size
             screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
@@ -232,7 +295,11 @@ while running:
             if event.y > 0: zoom = min(2.0, zoom + 0.1)
             elif event.y < 0: zoom = max(0.2, zoom - 0.1)
 
-    """ if event.type == pygame.KEYDOWN:
+        # --------------------------------
+        # TELEPORT IS A DEBUG FEATURE
+        # --------------------------------
+
+        if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_f:
                 current_time = pygame.time.get_ticks()
                 if current_time - last_teleport_time >= teleport_cooldown:
@@ -241,16 +308,19 @@ while running:
                     tx, ty = get_world_coords(mx, my, camera_x, camera_y, zoom)
                     player.rect.center = (tx, ty) # Teleport center to mouse
                     player.vel_y = 0
-                    last_teleport_time = current_time"""
+                    last_teleport_time = current_time
 
-    # 2. UPDATES
+
     player.update(platforms, hazards, ihazards, finish_blocks)
     
-    # Camera stays locked to player center in World Space
+
     camera_x = player.rect.centerx
     camera_y = player.rect.centery
 
-    # Check Hazards & Goals
+    # --------------------------
+    # made by me
+    # --------------------------
+
     for h in hazards + ihazards:
         if player.rect.colliderect(h):
             player.reset_position()
@@ -258,25 +328,40 @@ while running:
         if player.rect.colliderect(finish):
             current_level = (current_level % 4) + 1
             load_level(current_level)
+    for c in checkpoints:
+        if player.rect.colliderect(c):
+            START_X, START_Y = c.centerx - (player.rect.width / 2), c.top - player.rect.height
+            checkpoint_color = (255, 255, 10)
 
-    # 3. DRAWING
+    # ------------------------
+    # made by ai
+    # ------------------------
+    
     screen.fill(BG_COLOR)
     current_tile_size = TILE_SIZE * zoom
+    current_checkpoint_size_x = CHECKPOINT_SIZE_x * zoom
+    current_checkpoint_size_y = CHECKPOINT_SIZE_y * zoom
 
-    # Draw Hazards
+    # draw hazards
     for h in hazards:
         sx, sy = get_screen_coords(h.x, h.y, camera_x, camera_y, zoom)
         pygame.draw.rect(screen, HAZARD_COLOR, (sx, sy, current_tile_size, current_tile_size))
         
-    # Draw Goals
+    # draw goals
     for g in finish_blocks:
         sx, sy = get_screen_coords(g.x, g.y, camera_x, camera_y, zoom)
         pygame.draw.rect(screen, GOAL_COLOR, (sx, sy, current_tile_size, current_tile_size))
 
-    # Draw Platforms
+    # draw platforms
     for p in platforms:
         sx, sy = get_screen_coords(p.x, p.y, camera_x, camera_y, zoom)
         pygame.draw.rect(screen, PLATFORM_COLOR, (sx, sy, current_tile_size, current_tile_size))
+    
+    for c in checkpoints:
+        sx, sy = get_screen_coords(c.x, c.y, camera_x, camera_y, zoom)
+        is_claimed = (START_X == c.centerx - (player.rect.width / 2) and START_Y == c.top - player.rect.height)
+        current_color = (255, 255, 10) if is_claimed else (255, 255, 255)
+        pygame.draw.rect(screen, current_color, (sx, sy, current_checkpoint_size_x, current_checkpoint_size_y))
 
     # Draw Player (Centered by the math in get_screen_coords)
     px, py = get_screen_coords(player.rect.x, player.rect.y, camera_x, camera_y, zoom)
@@ -284,38 +369,16 @@ while running:
     scaled_p_height = player.rect.height * zoom
     pygame.draw.rect(screen, PLAYER_COLOR, (px, py, scaled_p_width, scaled_p_height))
 
-    # 4. UI (Drawn LAST - No zoom applied)
-    if show_controls:
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        overlay.set_alpha(180)
-        overlay.fill((0, 0, 0))
-        screen.blit(overlay, (0,0))
 
-        instr_font = pygame.font.SysFont("Arial", 30, bold=True)
-        
-
-        lines = [
-            "CONTROLS",
-            "Tab - Show this agan",
-            "A / D - Move Left & Right",
-            "SPACE - Jump",
-            "R - Reset Position",
-            "C - Print Coordinates",
-            "",
-            "Press any key to START"
-        ]
-
-        for i, line in enumerate(lines):
-            text_surf = instr_font.render(line, True, (255, 255, 255))
-            text_rect = text_surf.get_rect(center=(SCREEN_WIDTH//2, 150 + (i * 40)))
-            screen.blit(text_surf, text_rect)
     
-    # Transparent UI Box for Level Text
     level_text = ui_font.render(f"LEVEL: {current_level}", True, (255, 255, 255))
     text_rect = level_text.get_rect(topright=(SCREEN_WIDTH - 20, 20))
-    # Create the transparent background surface
+    
+    if controls_showing:
+        show_controls(True)
+    
     ui_bg = pygame.Surface(text_rect.inflate(20, 10).size, pygame.SRCALPHA)
-    ui_bg.fill((255, 255, 255, 50)) # Very subtle white tint
+    ui_bg.fill((255, 255, 255, 50)) 
     screen.blit(ui_bg, text_rect.move(-10, -5))
     screen.blit(level_text, text_rect)
 
