@@ -278,7 +278,7 @@ while running:
                 load_level(current_level)
             if event.key == pygame.K_g:
                 current_level = (current_level + 1)
-                if current_level > 4:
+                if current_level > 5:
                     current_level = 1
                 load_level(current_level)
             if event.key == pygame.K_TAB:
@@ -326,7 +326,7 @@ while running:
             player.reset_position()
     for finish in finish_blocks:
         if player.rect.colliderect(finish):
-            current_level = (current_level % 4) + 1
+            current_level = (current_level % 5) + 1
             load_level(current_level)
     for c in checkpoints:
         if player.rect.colliderect(c):

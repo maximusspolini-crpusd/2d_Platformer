@@ -1,0 +1,67 @@
+# the player can jump a gap of 8 blocks and jump up 5 blocks
+                                                                         
+PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP                                                                         
+P                                                   P                      
+P                  G                                P                      
+P               PPPPPPP                             P                       
+P                     K                             P                       
+P                      K                            P                       
+P                       KP                          P                        
+P                        K                          P                       
+P                         K                         P                       
+P                          K                        P                       
+P                           K                       P                       
+P                            KP                     P                        
+P                             K                     P                       
+P                              K                    P                       
+P                               KP                  P                        
+P                                K                  P                       
+P                                 K                 P                       
+P                                  KP               P                        
+P                                   K               P                       
+P                                    K              P                       
+P                                     K             P                       
+P                                      K            P                       
+P                                       K PP        P                      
+P                                                   P                    
+P                                                   P                      
+P                                                   P                      
+P                                                   P                      
+P                                                 PPP                        
+P                                                   P                       
+P                                                   P                      
+P                                                   P                      
+P                                                   P                      
+P            PP        PP      P     P       P      P                        
+P    PPPKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKP                                                                   
+P    PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP                                                                 
+P                                                   P                      
+P                                                   P                      
+P                                                   P                      
+PPP                                                 P                        
+P                                                   P                      
+P                                                   P                      
+P                                                   P                      
+PKKK                                                P                      
+PKKKPP                                              P                          
+PKKK                                                P                      
+PKKK                                                P                      
+PKKKK                                               P                      
+PKKKKK                                              P                
+PKKKKKKPP        K                                  P                        
+PKKKKKKK         P              K    K              P                      
+PKKKKKKKK             K        K    K               P                     
+PKKKKKKKKK             KP      K    K               P                     
+PKKKKKKKKKK             K      K    K               P                     
+PKKKKKKKKKKKPP           K          K  PPP          P                          
+PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP         P                      
+P                                                   P     
+P                                                   P       
+P                                                   P                      
+P                                            P      P                       
+P                                                   P                                                                                               
+P                                                   P                      
+P  S                                                P                              
+PPPPPP   P        P.  P    P.     P.       P        P                                                                  
+PKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKP
+PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP
