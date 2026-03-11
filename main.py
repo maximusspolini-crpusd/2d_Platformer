@@ -37,16 +37,12 @@ zoom = 1.0
 
 
 def get_screen_coords(x, y, camera_x, camera_y, zoom):
-    # This math MUST be: (Position - Camera) * Zoom + Center
     screen_x = (x - camera_x) * zoom + (SCREEN_WIDTH / 2)
     screen_y = (y - camera_y) * zoom + (SCREEN_HEIGHT / 2)
     return screen_x, screen_y
 
 
 def get_world_coords(mouse_x, mouse_y, camera_x, camera_y, zoom):
-    # 1. Move the origin back from screen center to top-left
-    # 2. Divide by zoom to "un-scale" the distance
-    # 3. Add the camera position to get the actual world coordinate
     world_x = (mouse_x - (SCREEN_WIDTH / 2)) / zoom + camera_x
     world_y = (mouse_y - (SCREEN_HEIGHT / 2)) / zoom + camera_y
     return world_x, world_y
@@ -63,6 +59,10 @@ ui_font = pygame.font.SysFont("Arial", 28, bold=True)
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
 pygame.display.set_caption("Platformer - Camera System")
 clock = pygame.time.Clock()
+
+# --------------------------------------
+# made by me
+# --------------------------------------
 
 def load_level(level_number):
     global platforms, hazards, finish_blocks, START_X, START_Y, ihazards, checkpoints
@@ -107,13 +107,6 @@ def load_level(level_number):
         
         load_level(1) 
         
-        
-
-        
-        
-# ---------------------
-#   Made by me
-# ---------------------
 
 def show_controls(controls_showing):
     if controls_showing:
