@@ -13,6 +13,7 @@ CHECKPOINT_SIZE_y = 90
 GRAVITY = 0.8
 JUMP_STRENGTH = -17
 PLAYER_SPEED = 5
+long_platforms_x = 34.5
 
 # Colors
 BG_COLOR = (0, 0, 0)
@@ -65,10 +66,11 @@ clock = pygame.time.Clock()
 # --------------------------------------
 
 def load_level(level_number):
-    global platforms, hazards, finish_blocks, START_X, START_Y, ihazards, checkpoints
+    global platforms, hazards, finish_blocks, START_X, START_Y, ihazards, checkpoints, long_platforms, adjusted_x
     
 
     platforms = []
+    long_platforms = []
     hazards = []
     ihazards = []
     finish_blocks = []
@@ -98,6 +100,10 @@ def load_level(level_number):
                     START_X, START_Y = x, y
                 elif cell == "C":
                     checkpoints.append(pygame.Rect(x, y, CHECKPOINT_SIZE_x, CHECKPOINT_SIZE_y))
+                elif cell == "L":
+                    adjusted_x = x - (long_platforms_x - TILE_SIZE)
+                    long_platforms.append(pygame.Rect(adjusted_x, y, long_platforms_x, TILE_SIZE))
+                    
                     
 
         player.reset_position()
@@ -170,7 +176,7 @@ class Player:
     #   Made by AI
     # ------------------------
     
-    def update(self, platforms, hazards, ihazards, goal):
+    def update(self, platforms, long_platforms, hazards, ihazards, goal):
 
 
         keys = pygame.key.get_pressed()
@@ -208,6 +214,16 @@ class Player:
                 elif self.vel_x < 0: 
                     self.rect.left = platform.right
                     self.vel_x = 0
+                    
+        for lplatform in long_platforms:
+            if self.rect.colliderect(lplatform):
+                if self.vel_x > 0:
+                    self.rect.right = lplatform.left
+                    self.vel_x = 0
+                elif self.vel_x < 0:
+                    self.rect.left = lplatform.right
+                    self.vel_x = 0
+            
 
         # --- JUMP LOGIC  ---
         if keys[pygame.K_SPACE] and self.coyote_timer > 0:
@@ -233,6 +249,18 @@ class Player:
                 elif self.vel_y < 0: 
                     self.rect.top = platform.bottom
                     self.vel_y = 0
+
+        for lplatform in long_platforms:
+            if self.rect.colliderect(lplatform):
+                if self.vel_y > 0: 
+                    self.rect.bottom = lplatform.top
+                    self.vel_y = 0
+                    self.on_ground = True
+                    self.coyote_timer = self.coyote_max 
+                elif self.vel_y < 0: 
+                    self.rect.top = lplatform.bottom
+                    self.vel_y = 0
+
 
         if not self.on_ground and self.coyote_timer > 0:
             self.coyote_timer -= 1
@@ -271,7 +299,7 @@ while running:
                 load_level(current_level)
             if event.key == pygame.K_g:
                 current_level = (current_level + 1)
-                if current_level > 5:
+                if current_level > 6:
                     current_level = 1
                 load_level(current_level)
             if event.key == pygame.K_TAB:
@@ -304,7 +332,7 @@ while running:
                     last_teleport_time = current_time
 
 
-    player.update(platforms, hazards, ihazards, finish_blocks)
+    player.update(platforms, long_platforms, hazards, ihazards, finish_blocks)
     
 
     camera_x = player.rect.centerx
@@ -319,7 +347,7 @@ while running:
             player.reset_position()
     for finish in finish_blocks:
         if player.rect.colliderect(finish):
-            current_level = (current_level % 5) + 1
+            current_level = (current_level % 6) + 1
             load_level(current_level)
     for c in checkpoints:
         if player.rect.colliderect(c):
@@ -334,6 +362,7 @@ while running:
     current_tile_size = TILE_SIZE * zoom
     current_checkpoint_size_x = CHECKPOINT_SIZE_x * zoom
     current_checkpoint_size_y = CHECKPOINT_SIZE_y * zoom
+    current_long_platforms_x = long_platforms_x * zoom
 
     # draw hazards
     for h in hazards:
@@ -349,6 +378,10 @@ while running:
     for p in platforms:
         sx, sy = get_screen_coords(p.x, p.y, camera_x, camera_y, zoom)
         pygame.draw.rect(screen, PLATFORM_COLOR, (sx, sy, current_tile_size, current_tile_size))
+
+    for lp in long_platforms:
+        sx, sy = get_screen_coords(lp.x, lp.y, camera_x, camera_y, zoom)
+        pygame.draw.rect(screen, PLATFORM_COLOR, (sx, sy, current_long_platforms_x, current_tile_size))
     
     for c in checkpoints:
         sx, sy = get_screen_coords(c.x, c.y, camera_x, camera_y, zoom)
