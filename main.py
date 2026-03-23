@@ -68,6 +68,7 @@ clock = pygame.time.Clock()
 def load_level(level_number):
     global platforms, hazards, finish_blocks, START_X, START_Y, ihazards, checkpoints, long_platforms, adjusted_x
     
+    #lists used to store the level data
 
     platforms = []
     long_platforms = []
@@ -78,13 +79,14 @@ def load_level(level_number):
 
 
 
-
+    # use level_number to select the correct file to parse
     file_path = f"levels/{level_number}.txt"
     try:
         with open(file_path, 'r') as f:
             level_data = [line.strip('\n') for line in f.readlines()]
             
-
+        # goes through each line and row and adds the level data in the correct list above
+        
         for row_index, row in enumerate(level_data):
             for col_index, cell in enumerate(row):
                 x, y = col_index * TILE_SIZE, row_index * TILE_SIZE
@@ -105,9 +107,9 @@ def load_level(level_number):
                     long_platforms.append(pygame.Rect(adjusted_x, y, long_platforms_x, TILE_SIZE))
                     
                     
-
+        #set player to start location
         player.reset_position()
-        
+    # catch the error so python doesnt through a fit when it catches an error
     except FileNotFoundError:
         print(f"Error: {file_path} not found! Returning to Level 1.")
         
