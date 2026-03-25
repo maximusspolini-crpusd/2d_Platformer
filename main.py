@@ -22,7 +22,7 @@ PLATFORM_COLOR = (100, 100, 120)
 HAZARD_COLOR = (255, 0, 0)
 GOAL_COLOR = (0, 255, 0)
 checkpoint_color = (255, 255, 255)
-
+debug = False
 
 teleport_cooldown = 100  # 100 milliseconds = .1 seconds
 last_teleport_time = 0   
@@ -300,7 +300,9 @@ while running:
             if event.key == pygame.K_r:
                 load_level(current_level)
             if event.key == pygame.K_g:
-                current_level = (current_level + 1)
+                if debug == True:
+                    current_level = (current_level + 1)
+                
                 if current_level > 6:
                     current_level = 1
                 load_level(current_level)
@@ -324,14 +326,15 @@ while running:
 
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_f:
-                current_time = pygame.time.get_ticks()
-                if current_time - last_teleport_time >= teleport_cooldown:
-                    mx, my = pygame.mouse.get_pos()
-                    # Use inverse math to find where we clicked in the real world
-                    tx, ty = get_world_coords(mx, my, camera_x, camera_y, zoom)
-                    player.rect.center = (tx, ty) # Teleport center to mouse
-                    player.vel_y = 0
-                    last_teleport_time = current_time
+                if debug == True:
+                    current_time = pygame.time.get_ticks()
+                    if current_time - last_teleport_time >= teleport_cooldown:
+                        mx, my = pygame.mouse.get_pos()
+                        # Use inverse math to find where we clicked in the real world
+                        tx, ty = get_world_coords(mx, my, camera_x, camera_y, zoom)
+                        player.rect.center = (tx, ty) # Teleport center to mouse
+                        player.vel_y = 0
+                        last_teleport_time = current_time
 
 
     player.update(platforms, long_platforms, hazards, ihazards, finish_blocks)
