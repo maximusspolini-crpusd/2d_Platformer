@@ -133,8 +133,6 @@ def show_controls(controls_showing):
             "SPACE - Jump",
             "R - Restart Level",
             "",
-            "THIS IS MY REMINDER THAT THE DEBUG STUFF IS STILL IN THE GAME",
-            "",
             "Press any key to EXIT"
         ]
 
