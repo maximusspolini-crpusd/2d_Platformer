@@ -26,15 +26,8 @@ debug = False
 
 teleport_cooldown = 100  # 100 milliseconds = .1 seconds
 last_teleport_time = 0   
-
 controls_showing = True
-
-
-
-
-
 zoom = 1.0  
-
 
 
 def get_screen_coords(x, y, camera_x, camera_y, zoom):
