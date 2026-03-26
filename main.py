@@ -1,4 +1,5 @@
 import pygame
+import random
 
 
 
@@ -22,7 +23,7 @@ PLATFORM_COLOR = (100, 100, 120)
 HAZARD_COLOR = (255, 0, 0)
 GOAL_COLOR = (0, 255, 0)
 checkpoint_color = (255, 255, 255)
-debug = False
+debug = True
 
 teleport_cooldown = 100  # 100 milliseconds = .1 seconds
 last_teleport_time = 0   
@@ -58,11 +59,102 @@ clock = pygame.time.Clock()
 # made by me
 # --------------------------------------
 
+def generate_snake_level():
+    # 1. DEFINE CHUNK SIZES 
+    # Let's assume chunks are 20 rows high, and 16 columns wide
+    CHUNK_H = 20
+    CHUNK_W = 16
+    
+    # 2. CREATE THE BLANK CANVAS
+    # We want a level that is 3 chunks wide and 2 chunks tall.
+    # That means 60 rows total (2 * 20) and 48 columns total (3 * 16).
+    # We fill it entirely with empty space (".") first.
+    canvas = [["." for _ in range(CHUNK_W * 3)] for _ in range(CHUNK_H * 2)]
+    
+    # --- HELPER FUNCTION: Paste a chunk onto the canvas ---
+    def paste(chunk_data, grid_x, grid_y):
+        # Calculate exactly where in the giant canvas this chunk starts
+        pixel_x = grid_x * CHUNK_W
+        pixel_y = grid_y * CHUNK_H
+        
+        for r in range(CHUNK_H):
+            for c in range(CHUNK_W):
+                # Only overwrite the canvas if the chunk has a block there!
+                if chunk_data[r][c] != ".":
+                    canvas[pixel_y + r][pixel_x + c] = chunk_data[r][c]
+
+    # --- YOUR CHUNK BLUEPRINTS (Set Pieces) ---
+    # (Make sure these are all EXACTLY 20 strings long, and 16 characters wide!)
+    start_chunk = [
+        "................", "................", "................", "................",
+        "................", "................", "................", "................",
+        "................", "................", "................", "................",
+        "................", "................", "................", "................",
+        "................", "................", "..S.............", "PPPPPPPPPPPPPPPP"
+    ]
+    
+    hallway_right = [
+        "................", "................", "................", "................",
+        "................", "................", "................", "................",
+        "..........PP....", "................", "....PP..........", "................",
+        "................", "................", "................", "................",
+        "................", "....P...........", "................", "PPPP......PPPPPP"
+    ]
+    
+    # Notice this one has an opening at the top, and platforms leading UP
+    turn_up = [
+        ".............P..", "............P...", "...........P....", "................",
+        ".........P......", "................", ".......P........", "................",
+        ".....P..........", "................", "...P............", "................",
+        "................", "................", "................", "................",
+        "P...............", "................", "................", "PPPPPPPPPPPPPPPP"
+    ]
+
+    hallway_left = [
+        "................", "................", "................", "................",
+        "................", "................", "................", "................",
+        "................", "................", "........PP......", "................",
+        "................", "....PP..........", "................", "................",
+        "................", "................", "................", "PPPPPPPPPPPPPPPP"
+    ]
+
+    goal_chunk = [
+        "................", "................", "................", "................",
+        "................", "................", "................", "................",
+        "................", "................", "................", "................",
+        "................", "................", "................", "................",
+        "................", "......G.........", "......P.........", "PPPPPPPPPPPPPPPP"
+    ]
+
+    # --- 3. THE DIRECTOR (Following your Right -> Up -> Left path) ---
+    
+    # Bottom Row (y=1): Moving Right
+    paste(start_chunk,   grid_x=0, grid_y=1) # Bottom-Left
+    paste(hallway_right, grid_x=1, grid_y=1) # Bottom-Middle
+    paste(turn_up,       grid_x=2, grid_y=1) # Bottom-Right (Starts the climb)
+
+    # Top Row (y=0): Moving Left
+    # (Notice we place them on grid_y = 0 so they are ABOVE the bottom row!)
+    paste(hallway_left,  grid_x=2, grid_y=0) # Top-Right (Entering from below)
+    paste(hallway_left,  grid_x=1, grid_y=0) # Top-Middle
+    paste(goal_chunk,    grid_x=0, grid_y=0) # Top-Left (The finish line)
+
+    # 4. CONVERT CANVAS TO STRINGS
+    # Your load_level function expects a list of strings, not a list of lists.
+    level_strings = []
+    for row in canvas:
+        level_strings.append("".join(row))
+        
+    return level_strings
+
+
+# --------------------------------------
+# made by me
+# --------------------------------------
+
 def load_level(level_number):
     global platforms, hazards, finish_blocks, START_X, START_Y, ihazards, checkpoints, long_platforms, adjusted_x
     
-    #lists used to store the level data
-
     platforms = []
     long_platforms = []
     hazards = []
@@ -70,44 +162,37 @@ def load_level(level_number):
     finish_blocks = []
     checkpoints = []
 
-
-
-    # use level_number to select the correct file to parse
     file_path = f"levels/{level_number}.txt"
+    
     try:
         with open(file_path, 'r') as f:
             level_data = [line.strip('\n') for line in f.readlines()]
-            
-        # goes through each line and row and adds the level data in the correct list above
-        
-        for row_index, row in enumerate(level_data):
-            for col_index, cell in enumerate(row):
-                x, y = col_index * TILE_SIZE, row_index * TILE_SIZE
-                if cell == "P":
-                    platforms.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
-                elif cell == "K":
-                    hazards.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
-                elif cell == "k":
-                    ihazards.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
-                elif cell == "G":
-                    finish_blocks.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
-                elif cell == "S": 
-                    START_X, START_Y = x, y
-                elif cell == "C":
-                    checkpoints.append(pygame.Rect(x, y, CHECKPOINT_SIZE_x, CHECKPOINT_SIZE_y))
-                elif cell == "L":
-                    adjusted_x = x - (long_platforms_x - TILE_SIZE)
-                    long_platforms.append(pygame.Rect(adjusted_x, y, long_platforms_x, TILE_SIZE))
-                    
-                    
-        #set player to start location
-        player.reset_position()
-    # catch the error so python doesnt through a fit when it catches an error
     except FileNotFoundError:
-        print(f"Error: {file_path} not found! Returning to Level 1.")
-        
-        load_level(1) 
-        
+        print(f"Level {level_number} not found. Generating directional level!")
+        level_data = generate_snake_level()
+            
+    for row_index, row in enumerate(level_data):
+        for col_index, cell in enumerate(row):
+            x, y = col_index * TILE_SIZE, row_index * TILE_SIZE
+            if cell == "P":
+                platforms.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
+            elif cell == "K":
+                hazards.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
+            elif cell == "k":
+                ihazards.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
+            elif cell == "G":
+                finish_blocks.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
+            elif cell == "S": 
+                START_X, START_Y = x, y
+            elif cell == "C":
+                checkpoints.append(pygame.Rect(x, y, CHECKPOINT_SIZE_x, CHECKPOINT_SIZE_y))
+            elif cell == "L":
+                adjusted_x = x - (long_platforms_x - TILE_SIZE)
+                long_platforms.append(pygame.Rect(adjusted_x, y, long_platforms_x, TILE_SIZE))
+                
+    # 4. Set player to the S block
+    player.reset_position()
+
 
 def show_controls(controls_showing):
     if controls_showing:
@@ -289,13 +374,10 @@ while running:
         if event.type == pygame.KEYDOWN:
             controls_showing = False
             if event.key == pygame.K_r:
-                load_level(current_level)
+                player.reset_position()
             if event.key == pygame.K_g:
                 if debug == True:
                     current_level = (current_level + 1)
-                
-                if current_level > 6:
-                    current_level = 1
                 load_level(current_level)
             if event.key == pygame.K_TAB:
                 controls_showing = True
