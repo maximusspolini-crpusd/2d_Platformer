@@ -59,93 +59,148 @@ clock = pygame.time.Clock()
 # made by me
 # --------------------------------------
 
-def generate_snake_level():
-    # 1. DEFINE CHUNK SIZES 
-    # Let's assume chunks are 20 rows high, and 16 columns wide
-    CHUNK_H = 20
-    CHUNK_W = 16
+def generate_perfect_climber(length=20):
+    CHUNK_W = 6 
+    CHUNK_H = 10
+    CANVAS_CHUNKS_HIGH = 30
+    length = random.randint(20, 75)
     
-    # 2. CREATE THE BLANK CANVAS
-    # We want a level that is 3 chunks wide and 2 chunks tall.
-    # That means 60 rows total (2 * 20) and 48 columns total (3 * 16).
-    # We fill it entirely with empty space (".") first.
-    canvas = [["." for _ in range(CHUNK_W * 3)] for _ in range(CHUNK_H * 2)]
+    # Notice the 'P' at the bottom left and bottom right. 
+    start_chunk = """\
+......
+......
+......
+......
+......
+......
+......
+......
+..S...
+PPPPPP"""
+
+    goal_chunk = """\
+......
+......
+......
+......
+......
+......
+......
+....G.
+....P.
+PPPPPP"""
+
+    # --- FLAT POOL (Enter Bottom-Left, Exit Bottom-Right) ---
+    flat_pool = [
+"""\
+......
+......
+......
+......
+......
+......
+......
+..KK..
+.PPPP.
+P....P""",
+
+"""\
+......
+......
+......
+......
+..L...
+......
+......
+......
+......
+P....P""",
+
+"""\
+......
+......
+......
+......
+......
+......
+......
+......
+......
+PPPPPP"""
+    ]
+
+    # --- UP POOL (Enter Bottom-Left, Climb, Exit Top-Right) ---
+    # The jump spacing here is guaranteed to be possible.
+    up_pool = [
+"""\
+.....P
+......
+....P.
+......
+..PP..
+......
+.P....
+......
+......
+P.....""",
+
+"""\
+.....P
+......
+......
+....PP
+......
+......
+..PP..
+......
+......
+P....."""
+    ]
+
+    def parse(chunk_text):
+        return chunk_text.strip().split('\n')
+
+    canvas = [["." for _ in range(CHUNK_W * length)] for _ in range(CHUNK_H * CANVAS_CHUNKS_HIGH)]
     
-    # --- HELPER FUNCTION: Paste a chunk onto the canvas ---
     def paste(chunk_data, grid_x, grid_y):
-        # Calculate exactly where in the giant canvas this chunk starts
         pixel_x = grid_x * CHUNK_W
         pixel_y = grid_y * CHUNK_H
-        
         for r in range(CHUNK_H):
             for c in range(CHUNK_W):
-                # Only overwrite the canvas if the chunk has a block there!
                 if chunk_data[r][c] != ".":
-                    canvas[pixel_y + r][pixel_x + c] = chunk_data[r][c]
+                    if 0 <= pixel_y + r < len(canvas) and 0 <= pixel_x + c < len(canvas[0]):
+                        canvas[pixel_y + r][pixel_x + c] = chunk_data[r][c]
 
-    # --- YOUR CHUNK BLUEPRINTS (Set Pieces) ---
-    # (Make sure these are all EXACTLY 20 strings long, and 16 characters wide!)
-    start_chunk = [
-        "................", "................", "................", "................",
-        "................", "................", "................", "................",
-        "................", "................", "................", "................",
-        "................", "................", "................", "................",
-        "................", "................", "..S.............", "PPPPPPPPPPPPPPPP"
-    ]
+    # --- PATHFINDING (Right and Up Only!) ---
+    grid_x = 0
+    grid_y = CANVAS_CHUNKS_HIGH - 2 # Start near the bottom
     
-    hallway_right = [
-        "................", "................", "................", "................",
-        "................", "................", "................", "................",
-        "..........PP....", "................", "....PP..........", "................",
-        "................", "................", "................", "................",
-        "................", "....P...........", "................", "PPPP......PPPPPP"
-    ]
+    paste(parse(start_chunk), grid_x, grid_y)
     
-    # Notice this one has an opening at the top, and platforms leading UP
-    turn_up = [
-        ".............P..", "............P...", "...........P....", "................",
-        ".........P......", "................", ".......P........", "................",
-        ".....P..........", "................", "...P............", "................",
-        "................", "................", "................", "................",
-        "P...............", "................", "................", "PPPPPPPPPPPPPPPP"
-    ]
-
-    hallway_left = [
-        "................", "................", "................", "................",
-        "................", "................", "................", "................",
-        "................", "................", "........PP......", "................",
-        "................", "....PP..........", "................", "................",
-        "................", "................", "................", "PPPPPPPPPPPPPPPP"
-    ]
-
-    goal_chunk = [
-        "................", "................", "................", "................",
-        "................", "................", "................", "................",
-        "................", "................", "................", "................",
-        "................", "................", "................", "................",
-        "................", "......G.........", "......P.........", "PPPPPPPPPPPPPPPP"
-    ]
-
-    # --- 3. THE DIRECTOR (Following your Right -> Up -> Left path) ---
-    
-    # Bottom Row (y=1): Moving Right
-    paste(start_chunk,   grid_x=0, grid_y=1) # Bottom-Left
-    paste(hallway_right, grid_x=1, grid_y=1) # Bottom-Middle
-    paste(turn_up,       grid_x=2, grid_y=1) # Bottom-Right (Starts the climb)
-
-    # Top Row (y=0): Moving Left
-    # (Notice we place them on grid_y = 0 so they are ABOVE the bottom row!)
-    paste(hallway_left,  grid_x=2, grid_y=0) # Top-Right (Entering from below)
-    paste(hallway_left,  grid_x=1, grid_y=0) # Top-Middle
-    paste(goal_chunk,    grid_x=0, grid_y=0) # Top-Left (The finish line)
-
-    # 4. CONVERT CANVAS TO STRINGS
-    # Your load_level function expects a list of strings, not a list of lists.
-    level_strings = []
-    for row in canvas:
-        level_strings.append("".join(row))
+    for _ in range(length - 2):
+        grid_x += 1
         
-    return level_strings
+        # 40% chance to climb UP, 60% chance to go FLAT
+        if random.random() < 0.4 and grid_y > 1: 
+            paste(parse(random.choice(up_pool)), grid_x, grid_y)
+            grid_y -= 1 # Shift the NEXT chunk up to match our Top-Right exit
+        else:
+            paste(parse(random.choice(flat_pool)), grid_x, grid_y)
+            
+    grid_x += 1
+    paste(parse(goal_chunk), grid_x, grid_y)
+
+    # --- THE VISIBLE KILL LAYER ---
+    for col in range(CHUNK_W * length):
+        canvas[-1][col] = 'K' 
+        canvas[-2][col] = 'K' 
+
+    # --- THE BOUNDARY WALLS ---
+    for row in range(len(canvas)):
+        canvas[row][0] = 'P'   
+        canvas[row][-1] = 'P'  
+
+    return ["".join(row) for row in canvas]
 
 
 # --------------------------------------
@@ -169,7 +224,7 @@ def load_level(level_number):
             level_data = [line.strip('\n') for line in f.readlines()]
     except FileNotFoundError:
         print(f"Level {level_number} not found. Generating directional level!")
-        level_data = generate_snake_level()
+        level_data = generate_perfect_climber()
             
     for row_index, row in enumerate(level_data):
         for col_index, cell in enumerate(row):
@@ -391,7 +446,7 @@ while running:
 
         if event.type == pygame.MOUSEWHEEL:
             if event.y > 0: zoom = min(2.0, zoom + 0.1)
-            elif event.y < 0: zoom = max(0.2, zoom - 0.1)
+            elif event.y < 0: zoom = max(0.0001, zoom - 0.1)
 
         # --------------------------------
         # TELEPORT IS A DEBUG FEATURE
