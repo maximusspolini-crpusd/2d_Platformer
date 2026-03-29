@@ -2,10 +2,13 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 import random
+import pygame
+
 
 class PlatformerEnv(gym.Env):
     def __init__(self):
         super(PlatformerEnv, self).__init__()
+    # ... rest of your init code ...
         
         # --- 1. THE CONTROLLER (ACTIONS) ---
         # 0: Idle, 1: Left, 2: Right, 3: Jump, 4: Jump Left, 5: Jump Right
@@ -14,7 +17,7 @@ class PlatformerEnv(gym.Env):
         # --- 2. THE EYES (OBSERVATION) ---
         # 5x5 grid = 25 numbers
         self.observation_space = spaces.Box(
-            low=-1.0, high=2.0, shape=(25,), dtype=np.float32
+            low=-1.0, high=2.0, shape=(121,), dtype=np.float32
         )
         
         # --- 3. PHYSICS VARIABLES ---
@@ -33,11 +36,37 @@ class PlatformerEnv(gym.Env):
         
         # Dummy level for testing right now:
         self.level_data = [
-            "......",
-            "......",
-            "S...G.",
-            "PP.PPP",
-            "KKKKKK"
+            'PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP',
+            'Pkkkk                                                 P',
+            'Pkkkk                                                 P',
+            'P                                                     P',
+            'P                                                     P',
+            'P                                                     P',
+            'P                                                     P',
+            'P                                                     P',
+            'P                                                     P',
+            'P                                                     P',
+            'P                           P        PP      PP       P',
+            'P                           P                         P',
+            'P                           P                         P',
+            'P  S                        P                         P',
+            'PPPPPP       PPPP    PP     PKKKKKKKKKKKKKKKKKK       P',
+            'PKKKKKKKKKKKKKKKKKKKKKKKKKKKPPPPPPPPPPPPPPPPPPP       P',
+            'PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP       P',
+            'P                                                     P',
+            'P                                                     P',
+            'P                                                     P',
+            'P                                                     P',
+            'P                                                     P',
+            'G                                                     P',
+            'G                                                     P',
+            'G                                                     P',
+            'G                                                     P',
+            'PPPPP    PP     PP      PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP',
+            'P                       P',
+            'PKKKKKKKKKKKKKKKKKKKKKKKP',
+            'PPPPPPPPPPPPPPPPPPPPPPPPP'
+
         ]
         
         # Find the 'S' to set spawn coordinates
@@ -64,9 +93,14 @@ class PlatformerEnv(gym.Env):
             
         # Check X collisions
         new_x = self.player_x + dx
-        if 0 <= new_x < len(self.level_data[0]): # Keep on screen
-            if self.level_data[int(self.player_y)][int(new_x)] != 'P':
-                self.player_x = new_x # Move if not hitting a wall
+        if 0 <= new_x < len(self.level_data[0]): # Keep on screen horizontally
+            
+            # THE FIX: Check if the player is safely inside the vertical map bounds first!
+            if 0 <= int(self.player_y) < len(self.level_data):
+                if self.level_data[int(self.player_y)][int(new_x)] != 'P':
+                    self.player_x = new_x # Move if not hitting a wall
+            else:
+                self.player_x = new_x # If they are above the map in the sky, let them move freely
 
         # --- 2. Y-AXIS MOVEMENT (GRAVITY & JUMPING) ---
         if action in [3, 4, 5] and self.is_grounded:
@@ -123,11 +157,14 @@ class PlatformerEnv(gym.Env):
             done = True
             print("AI BEAT THE LEVEL!")
 
+        # Turn on the visualizer!
+        #self.render()
+        
         return self._get_observation(), reward, done, False, {}
 
     def _get_observation(self):
-        """Creates the 5x5 vision cone around the AI."""
-        vision_radius = 2 
+        """Creates the 11x11 vision cone around the AI."""
+        vision_radius = 5
         obs = []
         
         int_y = int(self.player_y)
@@ -140,8 +177,51 @@ class PlatformerEnv(gym.Env):
                 else:
                     tile = self.level_data[r][c]
                     if tile == 'P': obs.append(1.0)
-                    elif tile == 'K': obs.append(-1.0)
-                    elif tile == 'G': obs.append(2.0)
-                    else: obs.append(0.0) 
+                    elif tile == 'K': obs.append(-20.0)
+                    elif tile == 'G': obs.append(20.0)
+                    else: obs.append(-0.01) 
                         
         return np.array(obs, dtype=np.float32)
+    def render(self):
+        """Draws a simple Pygame window to watch the AI learn."""
+        # Initialize Pygame only once
+        if not hasattr(self, 'screen'):
+            pygame.init()
+            self.cell_size = 25 # Size of each block
+            width = len(self.level_data[0]) * self.cell_size
+            height = len(self.level_data) * self.cell_size
+            self.screen = pygame.display.set_mode((width, height))
+            pygame.display.set_caption("AI Training Vision")
+            self.clock = pygame.time.Clock()
+
+        # Fill background with black
+        self.screen.fill((0, 0, 0))
+
+        # Draw the map
+        for r, row in enumerate(self.level_data):
+            for c, char in enumerate(row):
+                rect = pygame.Rect(c * self.cell_size, r * self.cell_size, self.cell_size, self.cell_size)
+                if char == 'P': 
+                    pygame.draw.rect(self.screen, (100, 100, 100), rect) # Gray platforms
+                elif char == 'K': 
+                    pygame.draw.rect(self.screen, (255, 0, 0), rect)     # Red spikes
+                elif char == 'G': 
+                    pygame.draw.rect(self.screen, (0, 255, 0), rect)     # Green goal
+                elif char == 'S': 
+                    pygame.draw.rect(self.screen, (255, 255, 0), rect, 1) # Yellow outline for spawn
+
+        # Draw the AI Player (Blue Square)
+        player_rect = pygame.Rect(int(self.player_x) * self.cell_size, int(self.player_y) * self.cell_size, self.cell_size, self.cell_size)
+        pygame.draw.rect(self.screen, (0, 150, 255), player_rect) 
+
+        # Update the screen
+        pygame.display.flip()
+        
+        # Lock the framerate so we can actually see it (otherwise it's a blur)
+        # You can change this to 120 or 200 if you want it to train faster while watching!
+        self.clock.tick(60) 
+        
+        # Keep the window from freezing
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()

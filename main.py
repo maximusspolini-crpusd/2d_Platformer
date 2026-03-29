@@ -1,6 +1,7 @@
 import pygame
 from stable_baselines3 import PPO
 import numpy as np
+import os
 
 
 pygame.init()
@@ -23,65 +24,63 @@ PLATFORM_COLOR = (100, 100, 120)
 HAZARD_COLOR = (255, 0, 0)
 GOAL_COLOR = (0, 255, 0)
 checkpoint_color = (255, 255, 255)
-debug = False
 
-teleport_cooldown = 100  # 100 milliseconds = .1 seconds
+# Game State
+debug = False
+ai_is_playing = True # SET THIS TO FALSE IF YOU WANT TO PLAY MANUALLY
+current_level = 1  
+zoom = 1.0  
+teleport_cooldown = 100
 last_teleport_time = 0   
 controls_showing = True
-zoom = 1.0  
+current_level_map = [] # To store text data for AI vision
 
+# UI
+ui_font = pygame.font.SysFont("Arial", 28, bold=True)
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
+pygame.display.set_caption("Platformer - AI vs Player")
+clock = pygame.time.Clock()
 
+# --- UTILITY FUNCTIONS ---
 def get_screen_coords(x, y, camera_x, camera_y, zoom):
     screen_x = (x - camera_x) * zoom + (SCREEN_WIDTH / 2)
     screen_y = (y - camera_y) * zoom + (SCREEN_HEIGHT / 2)
     return screen_x, screen_y
-
 
 def get_world_coords(mouse_x, mouse_y, camera_x, camera_y, zoom):
     world_x = (mouse_x - (SCREEN_WIDTH / 2)) / zoom + camera_x
     world_y = (mouse_y - (SCREEN_HEIGHT / 2)) / zoom + camera_y
     return world_x, world_y
 
-
-
-
-START_X = 0
-START_Y = 0
-
-current_level = 1  
-ui_font = pygame.font.SysFont("Arial", 28, bold=True)
-
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
-pygame.display.set_caption("Platformer - Camera System")
-clock = pygame.time.Clock()
-
-# --------------------------------------
-# made by me
-# --------------------------------------
+def get_ai_observation(level_data, player_grid_x, player_grid_y):
+    """Crops a 11x11 grid around the player for the AI brain."""
+    vision_radius = 5
+    obs = []
+    int_y = int(player_grid_y)
+    int_x = int(player_grid_x)
+    
+    for r in range(int_y - vision_radius, int_y + vision_radius + 1):
+        for c in range(int_x - vision_radius, int_x + vision_radius + 1):
+            if r < 0 or r >= len(level_data) or c < 0 or c >= len(level_data[0]):
+                obs.append(1.0) # Treat out of bounds as Wall
+            else:
+                tile = level_data[r][c]
+                if tile == 'P' or tile == 'L': obs.append(1.0) # Platforms
+                elif tile == 'K' or tile == 'k': obs.append(-1.0) # Hazards
+                elif tile == 'G': obs.append(2.0) # Goal
+                else: obs.append(0.0) # Empty space
+    return np.array(obs, dtype=np.float32)
 
 def load_level(level_number):
-    global platforms, hazards, finish_blocks, START_X, START_Y, ihazards, checkpoints, long_platforms, adjusted_x
-    
-    #lists used to store the level data
+    global platforms, hazards, finish_blocks, START_X, START_Y, ihazards, checkpoints, long_platforms, current_level_map
+    platforms, long_platforms, hazards, ihazards, finish_blocks, checkpoints = [], [], [], [], [], []
 
-    platforms = []
-    long_platforms = []
-    hazards = []
-    ihazards = []
-    finish_blocks = []
-    checkpoints = []
-
-
-
-    # use level_number to select the correct file to parse
     file_path = f"levels/{level_number}.txt"
     try:
         with open(file_path, 'r') as f:
-            level_data = [line.strip('\n') for line in f.readlines()]
+            current_level_map = [line.strip('\n') for line in f.readlines()]
             
-        # goes through each line and row and adds the level data in the correct list above
-        
-        for row_index, row in enumerate(level_data):
+        for row_index, row in enumerate(current_level_map):
             for col_index, cell in enumerate(row):
                 x, y = col_index * TILE_SIZE, row_index * TILE_SIZE
                 if cell == "P":
@@ -99,46 +98,22 @@ def load_level(level_number):
                 elif cell == "L":
                     adjusted_x = x - (long_platforms_x - TILE_SIZE)
                     long_platforms.append(pygame.Rect(adjusted_x, y, long_platforms_x, TILE_SIZE))
-                    
-                    
-        #set player to start location
         player.reset_position()
-    # catch the error so python doesnt through a fit when it catches an error
     except FileNotFoundError:
-        print(f"Error: {file_path} not found! Returning to Level 1.")
-        
-        load_level(1) 
-        
+        print(f"Error: {file_path} not found!")
 
-def show_controls(controls_showing):
-    if controls_showing:
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        overlay.set_alpha(180)
-        overlay.fill((0, 0, 0))
-        screen.blit(overlay, (0,0))
+def show_controls():
+    overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+    overlay.set_alpha(180)
+    overlay.fill((0, 0, 0))
+    screen.blit(overlay, (0,0))
+    instr_font = pygame.font.SysFont("Arial", 30, bold=True)
+    lines = ["CONTROLS", "Tab - Show this", "A / D - Move", "SPACE - Jump", "R - Restart", "M - Toggle AI Mode", "", "Press any key to EXIT"]
+    for i, line in enumerate(lines):
+        text_surf = instr_font.render(line, True, (255, 255, 255))
+        text_rect = text_surf.get_rect(center=(SCREEN_WIDTH//2, 150 + (i * 40)))
+        screen.blit(text_surf, text_rect)
 
-        instr_font = pygame.font.SysFont("Arial", 30, bold=True)
-        
-
-        lines = [
-            "CONTROLS",
-            "Tab - Show this agan",
-            "A / D - Move Left & Right",
-            "SPACE - Jump",
-            "R - Restart Level",
-            "",
-            "Press any key to EXIT"
-        ]
-
-        for i, line in enumerate(lines):
-            text_surf = instr_font.render(line, True, (255, 255, 255))
-            text_rect = text_surf.get_rect(center=(SCREEN_WIDTH//2, 150 + (i * 40)))
-            screen.blit(text_surf, text_rect)
-
-# -------------------
-# made by ai
-# -------------------
-        
 # --- PLAYER CLASS ---
 class Player:
     def __init__(self, x, y):
@@ -146,289 +121,159 @@ class Player:
         self.vel_y = 0
         self.vel_x = 0
         self.on_ground = False
-        
-        self.accel = 0.8
-        self.air_friction = 0.8
-        self.ground_friction = 0.7
         self.max_speed = 5
-        
+        self.ground_friction = 0.7
+        self.air_friction = 0.8
         self.coyote_timer = 0
-        self.coyote_max = 60
-        
-    # -------------------------
-    #   Made by me
-    # -------------------------
+        self.coyote_max = 10 # Adjusted for better control
+
     def reset_position(self):
-        self.vel_y = 0
         self.vel_x = 0
+        self.vel_y = 0
         self.rect.x = START_X
         self.rect.y = START_Y
-        
-        
-        
-    # -------------------------
-    #   Made by AI
-    # ------------------------
-    
+
     def update(self, platforms, long_platforms, hazards, ihazards, goal, moving_left=False, moving_right=False, jumping=False):
+        # Horizontal
+        if moving_left: self.vel_x -= 1.0
+        if moving_right: self.vel_x += 1.0
         
-        # --- HORIZONTAL MOVEMENT ---
-        if moving_left:
-            self.vel_x -= self.max_speed
-        if moving_right:
-            self.vel_x += self.max_speed
-            
-        # (Slight fix here: made it check that BOTH are false before applying friction, 
-        # otherwise moving left would accidentally trigger friction!)
-        if not moving_left and not moving_right: 
-            if self.on_ground:
-                self.vel_x *= self.ground_friction
-            else:
-                self.vel_x *= self.air_friction
+        if not moving_left and not moving_right:
+            self.vel_x *= self.ground_friction if self.on_ground else self.air_friction
 
-        if self.vel_x > self.max_speed: self.vel_x = self.max_speed
-        if self.vel_x < -self.max_speed: self.vel_x = -self.max_speed
-
-        if abs(self.vel_x) < 0.1:
-            self.vel_x = 0
-
-        # terminal velo
-        if self.vel_y > 15:
-            self.vel_y = 15
-
-        dy = self.vel_y
+        self.vel_x = max(-self.max_speed, min(self.max_speed, self.vel_x))
+        if abs(self.vel_x) < 0.1: self.vel_x = 0
 
         self.rect.x += self.vel_x
+        for p in platforms + long_platforms:
+            if self.rect.colliderect(p):
+                if self.vel_x > 0: self.rect.right = p.left
+                elif self.vel_x < 0: self.rect.left = p.right
+                self.vel_x = 0
 
-        # --- X COLLISIONS ---
-        for platform in platforms:
-            if self.rect.colliderect(platform):
-                if self.vel_x > 0:
-                    self.rect.right = platform.left
-                    self.vel_x = 0
-                elif self.vel_x < 0:
-                    self.rect.left = platform.right
-                    self.vel_x = 0
-
-        for lplatform in long_platforms:
-            if self.rect.colliderect(lplatform):
-                if self.vel_x > 0:
-                    self.rect.right = lplatform.left
-                    self.vel_x = 0
-                elif self.vel_x < 0:
-                    self.rect.left = lplatform.right
-                    self.vel_x = 0
-
-        # --- JUMP LOGIC ---
+        # Vertical
         if jumping and self.coyote_timer > 0:
-            self.vel_y = JUMP_STRENGTH # Make sure JUMP_STRENGTH is defined in your class/globally!
+            self.vel_y = JUMP_STRENGTH
             self.coyote_timer = 0
             self.on_ground = False
 
-        self.vel_y += GRAVITY # Make sure GRAVITY is defined!
-        dy = self.vel_y
-
-        self.rect.y += dy
+        self.vel_y += GRAVITY
+        self.vel_y = min(15, self.vel_y)
+        self.rect.y += self.vel_y
         self.on_ground = False
 
-        # --- Y COLLISIONS ---
-        for platform in platforms:
-            if self.rect.colliderect(platform):
+        for p in platforms + long_platforms:
+            if self.rect.colliderect(p):
                 if self.vel_y > 0:
-                    self.rect.bottom = platform.top
+                    self.rect.bottom = p.top
                     self.vel_y = 0
                     self.on_ground = True
                     self.coyote_timer = self.coyote_max
                 elif self.vel_y < 0:
-                    self.rect.top = platform.bottom
-                    self.vel_y = 0
-
-        for lplatform in long_platforms:
-            if self.rect.colliderect(lplatform):
-                if self.vel_y > 0:
-                    self.rect.bottom = lplatform.top
-                    self.vel_y = 0
-                    self.on_ground = True
-                    self.coyote_timer = self.coyote_max
-                elif self.vel_y < 0:
-                    self.rect.top = lplatform.bottom
+                    self.rect.top = p.bottom
                     self.vel_y = 0
 
         if not self.on_ground and self.coyote_timer > 0:
             self.coyote_timer -= 1
 
-    def draw(self, surface):
-        pygame.draw.rect(surface, PLAYER_COLOR, self.rect)
-
-
-player = Player(50, 50)
+# Initializing Objects
+player = Player(0, 0)
 load_level(current_level)
-running = True
 
-
-# Load the trained AI
+# Load AI
 print("Loading AI Brain...")
-ai_brain = PPO.load("smart_platformer_bot")
+try:
+    ai_brain = PPO.load("smart_platformer_bot")
+    print("AI Brain Loaded Successfully!")
+except:
+    print("Warning: smart_platformer_bot.zip not found. Manual play only.")
+    ai_is_playing = False
 
+# Main Loop
+running = True
+camera_x, camera_y = player.rect.center
 
-def get_ai_observation(level_data, player_grid_x, player_grid_y):
-    """Generates the exact 5x5 grid the AI was trained on."""
-    vision_radius = 2 
-    obs = []
-    
-    int_y = int(player_grid_y)
-    int_x = int(player_grid_x)
-    
-    for r in range(int_y - vision_radius, int_y + vision_radius + 1):
-        for c in range(int_x - vision_radius, int_x + vision_radius + 1):
-            if r < 0 or r >= len(level_data) or c < 0 or c >= len(level_data[0]):
-                obs.append(1.0) # Wall
-            else:
-                tile = level_data[r][c]
-                if tile == 'P': obs.append(1.0)
-                elif tile == 'K': obs.append(-1.0)
-                elif tile == 'G': obs.append(2.0)
-                else: obs.append(0.0) 
-                    
-    return np.array(obs, dtype=np.float32)
-
-
-
-
-
-camera_x = player.rect.centerx
-camera_y = player.rect.centery
-
-# --- MAIN GAME LOOP ---
 while running:
-
+    # 1. Inputs/Events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        # ----------------------------
-        #   Made by me
-        # ----------------------------
-        
-        
-        # SKIP LEVEL IS A DEBUG FEATURE
         if event.type == pygame.KEYDOWN:
             controls_showing = False
-            if event.key == pygame.K_r:
-                load_level(current_level)
-            if event.key == pygame.K_g:
-                if debug == True:
-                    current_level = (current_level + 1)
-                
-                if current_level > 6:
-                    current_level = 1
-                load_level(current_level)
-            if event.key == pygame.K_TAB:
-                controls_showing = True
-
-        # ----------------------------
-        #   Made by AI 
-        # ----------------------------
+            if event.key == pygame.K_r: load_level(current_level)
+            if event.key == pygame.K_TAB: controls_showing = True
+            if event.key == pygame.K_m: ai_is_playing = not ai_is_playing
         if event.type == pygame.VIDEORESIZE:
             SCREEN_WIDTH, SCREEN_HEIGHT = event.size
             screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
-
         if event.type == pygame.MOUSEWHEEL:
-            if event.y > 0: zoom = min(2.0, zoom + 0.1)
-            elif event.y < 0: zoom = max(0.2, zoom - 0.1)
+            zoom = max(0.2, min(2.0, zoom + (event.y * 0.1)))
 
-        # --------------------------------
-        # TELEPORT IS A DEBUG FEATURE
-        # --------------------------------
+    # 2. AI Decision vs Player Input
+    # --- AI DECISION MAKING ---
+    if ai_is_playing:
+        # Use round() instead of // so the AI "sees" the next tile 
+        # as soon as it's more than halfway across the current one.
+        grid_x = round(player.rect.x / TILE_SIZE)
+        grid_y = round(player.rect.y / TILE_SIZE)
+        
+        # Get vision based on the rounded grid position
+        obs = get_ai_observation(current_level_map, grid_x, grid_y)
+        # Add a print here to debug if it's still stuck!
+        # print(f"AI Position: {grid_x}, {grid_y} | Vision: {obs[:5]}") 
+        
+        action, _ = ai_brain.predict(obs, deterministic=False)
+        
+        move_l = action in [1, 4]
+        move_r = action in [2, 5]
+        jump = action in [3, 4, 5]
+    else:
+        keys = pygame.key.get_pressed()
+        move_l = keys[pygame.K_a]
+        move_r = keys[pygame.K_d]
+        jump = keys[pygame.K_SPACE]
 
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_f:
-                if debug == True:
-                    current_time = pygame.time.get_ticks()
-                    if current_time - last_teleport_time >= teleport_cooldown:
-                        mx, my = pygame.mouse.get_pos()
-                        # Use inverse math to find where we clicked in the real world
-                        tx, ty = get_world_coords(mx, my, camera_x, camera_y, zoom)
-                        player.rect.center = (tx, ty) # Teleport center to mouse
-                        player.vel_y = 0
-                        last_teleport_time = current_time
+    # 3. Physics & Camera
+    player.update(platforms, long_platforms, hazards, ihazards, finish_blocks, move_l, move_r, jump)
+    camera_x += (player.rect.centerx - camera_x) * 0.1
+    camera_y += (player.rect.centery - camera_y) * 0.1
 
-
-    player.update(platforms, long_platforms, hazards, ihazards, finish_blocks)
-    
-
-    camera_x = player.rect.centerx
-    camera_y = player.rect.centery
-
-    # --------------------------
-    # made by me
-    # --------------------------
-
+    # 4. Logic (Hazards/Goals)
     for h in hazards + ihazards:
-        if player.rect.colliderect(h):
-            player.reset_position()
-    for finish in finish_blocks:
-        if player.rect.colliderect(finish):
+        if player.rect.colliderect(h): player.reset_position()
+    for f in finish_blocks:
+        if player.rect.colliderect(f):
             current_level = (current_level % 6) + 1
             load_level(current_level)
-    for c in checkpoints:
-        if player.rect.colliderect(c):
-            START_X, START_Y = c.centerx - (player.rect.width / 2), c.top - player.rect.height
-            checkpoint_color = (255, 255, 10)
 
-    # ------------------------
-    # made by ai
-    # ------------------------
-    
+    # 5. Drawing
     screen.fill(BG_COLOR)
-    current_tile_size = TILE_SIZE * zoom
-    current_checkpoint_size_x = CHECKPOINT_SIZE_x * zoom
-    current_checkpoint_size_y = CHECKPOINT_SIZE_y * zoom
-    current_long_platforms_x = long_platforms_x * zoom
-
-    # draw hazards
+    c_tile = TILE_SIZE * zoom
+    
+    # Draw World Elements
     for h in hazards:
         sx, sy = get_screen_coords(h.x, h.y, camera_x, camera_y, zoom)
-        pygame.draw.rect(screen, HAZARD_COLOR, (sx, sy, current_tile_size, current_tile_size))
-        
-    # draw goals
+        pygame.draw.rect(screen, HAZARD_COLOR, (sx, sy, c_tile, c_tile))
     for g in finish_blocks:
         sx, sy = get_screen_coords(g.x, g.y, camera_x, camera_y, zoom)
-        pygame.draw.rect(screen, GOAL_COLOR, (sx, sy, current_tile_size, current_tile_size))
-
-    # draw platforms
+        pygame.draw.rect(screen, GOAL_COLOR, (sx, sy, c_tile, c_tile))
     for p in platforms:
         sx, sy = get_screen_coords(p.x, p.y, camera_x, camera_y, zoom)
-        pygame.draw.rect(screen, PLATFORM_COLOR, (sx, sy, current_tile_size, current_tile_size))
-
+        pygame.draw.rect(screen, PLATFORM_COLOR, (sx, sy, c_tile, c_tile))
     for lp in long_platforms:
         sx, sy = get_screen_coords(lp.x, lp.y, camera_x, camera_y, zoom)
-        pygame.draw.rect(screen, PLATFORM_COLOR, (sx, sy, current_long_platforms_x, current_tile_size))
-    
-    for c in checkpoints:
-        sx, sy = get_screen_coords(c.x, c.y, camera_x, camera_y, zoom)
-        is_claimed = (START_X == c.centerx - (player.rect.width / 2) and START_Y == c.top - player.rect.height)
-        current_color = (255, 255, 10) if is_claimed else (255, 255, 255)
-        pygame.draw.rect(screen, current_color, (sx, sy, current_checkpoint_size_x, current_checkpoint_size_y))
+        pygame.draw.rect(screen, PLATFORM_COLOR, (sx, sy, long_platforms_x * zoom, c_tile))
 
-    # Draw Player (Centered by the math in get_screen_coords)
+    # Draw Player
     px, py = get_screen_coords(player.rect.x, player.rect.y, camera_x, camera_y, zoom)
-    scaled_p_width = player.rect.width * zoom
-    scaled_p_height = player.rect.height * zoom
-    pygame.draw.rect(screen, PLAYER_COLOR, (px, py, scaled_p_width, scaled_p_height))
+    pygame.draw.rect(screen, PLAYER_COLOR, (px, py, player.rect.width * zoom, player.rect.height * zoom))
 
+    # UI
+    mode_text = "AI MODE" if ai_is_playing else "MANUAL MODE"
+    lvl_surf = ui_font.render(f"LEVEL: {current_level} | {mode_text}", True, (255, 255, 255))
+    screen.blit(lvl_surf, (20, 20))
 
-    
-    level_text = ui_font.render(f"LEVEL: {current_level}", True, (255, 255, 255))
-    text_rect = level_text.get_rect(topright=(SCREEN_WIDTH - 20, 20))
-    
-    if controls_showing:
-        show_controls(True)
-    
-    ui_bg = pygame.Surface(text_rect.inflate(20, 10).size, pygame.SRCALPHA)
-    ui_bg.fill((255, 255, 255, 50)) 
-    screen.blit(ui_bg, text_rect.move(-10, -5))
-    screen.blit(level_text, text_rect)
-
+    if controls_showing: show_controls()
     pygame.display.flip()
     clock.tick(60)
 
