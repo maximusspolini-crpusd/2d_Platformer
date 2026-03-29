@@ -16,9 +16,7 @@ class PlatformerEnv(gym.Env):
         
         # --- 2. THE EYES (OBSERVATION) ---
         # 5x5 grid = 25 numbers
-        self.observation_space = spaces.Box(
-            low=-1.0, high=2.0, shape=(121,), dtype=np.float32
-        )
+        self.observation_space = spaces.Box(low=0, high=255, shape=(225,), dtype=np.float32)
         
         # --- 3. PHYSICS VARIABLES ---
         self.player_x = 0
@@ -26,6 +24,19 @@ class PlatformerEnv(gym.Env):
         self.y_velocity = 0.0
         self.is_grounded = False
         self.level_data = []
+         # --- ADD THIS TO YOUR __INIT__ FUNCTION ---
+        self.waypoints = []
+        for r, row in enumerate(self.level_data):
+            for c, tile in enumerate(row):
+                if tile == 'W':
+                    # Save the pixel coordinates of the Waypoint
+                    self.waypoints.append((c * self.tile_size, r * self.tile_size))
+        
+        # Sort them by X-coordinate (left to right) so the AI hits them in order
+        self.waypoints.sort(key=lambda wp: wp[0])
+        
+        self.current_wp_index = 0
+        self.prev_distance = None
 
     def reset(self, seed=None):
         """Builds a new level and drops the player at Spawn."""
@@ -44,12 +55,12 @@ class PlatformerEnv(gym.Env):
             'P                                                     P',
             'P                                                     P',
             'P                                                     P',
-            'P                                                     P',
+            'P                                                 W   P',
             'P                                                     P',
             'P                           P        PP      PP       P',
             'P                           P                         P',
             'P                           P                         P',
-            'P  S                        P                         P',
+            'P  S           W            P                         P',
             'PPPPPP       PPPP    PP     PKKKKKKKKKKKKKKKKKK       P',
             'PKKKKKKKKKKKKKKKKKKKKKKKKKKKPPPPPPPPPPPPPPPPPPP       P',
             'PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP       P',
@@ -59,9 +70,9 @@ class PlatformerEnv(gym.Env):
             'P                                                     P',
             'P                                                     P',
             'G                                                     P',
+            'G                                            W        P',
             'G                                                     P',
-            'G                                                     P',
-            'G                                                     P',
+            'G   W                                                 P',
             'PPPPP    PP     PP      PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP',
             'P                       P',
             'PKKKKKKKKKKKKKKKKKKKKKKKP',
@@ -78,6 +89,8 @@ class PlatformerEnv(gym.Env):
                     
         self.y_velocity = 0.0
         self.is_grounded = True
+        self.current_wp_index = 0
+        self.prev_distance = None
         
         return self._get_observation(), {}
 
@@ -132,13 +145,10 @@ class PlatformerEnv(gym.Env):
         reward = 0
         done = False
         
-        # Reward for moving right!
-        if dx > 0:
-            reward += 1 
             
         # Penalize standing still
         if action == 0:
-            reward -= 0.1 
+            reward -= 1
 
         # Check what tile the player is currently inside
         current_tile = '.'
@@ -147,7 +157,7 @@ class PlatformerEnv(gym.Env):
 
         # Did they hit spikes?
         if current_tile == 'K':
-            reward -= 100 # Massive penalty
+            reward -= 20 # Massive penalty
             done = True
             print("AI Died!")
 
@@ -159,12 +169,75 @@ class PlatformerEnv(gym.Env):
 
         # Turn on the visualizer!
         #self.render()
+        #pygame.display.flip()
+        # --- ADD THIS INSIDE step() RIGHT BEFORE RETURNING ---
+        import math
+        
+        if self.current_wp_index < len(self.waypoints):
+            # Get the coordinates of the currently active waypoint
+            target_x, target_y = self.waypoints[self.current_wp_index]
+            
+            # Calculate distance to it
+            dist = math.hypot(target_x - self.player.x, target_y - self.player.y)
+            
+            # 1. Proximity Reward (Getting closer = Good!)
+            if self.prev_distance is not None:
+                # If we moved 5 pixels closer, we get a small positive reward.
+                distance_improvement = self.prev_distance - dist
+                reward += distance_improvement * 0.1 
+                
+            self.prev_distance = dist
+            
+            # 2. Check if we are within range to "collect" it (e.g., 1 tile width)
+            if dist < self.tile_size: 
+                self.current_wp_index += 1 # Target the next 'W'
+                reward += 50.0 # BIG BONUS for collecting it!
+                self.prev_distance = None # Reset distance tracker for the new target
         
         return self._get_observation(), reward, done, False, {}
 
+    def draw_ai_vision(self):
+        """Draws a semi-transparent 11x11 grid around the player."""
+        if not hasattr(self, 'screen') or self.screen is None:
+            return # Skip drawing if there is no window (Dark Mode)
+        # 1. Create a transparent surface the size of your screen
+        overlay = pygame.Surface((self.screen.get_width(), self.screen.get_height()), pygame.SRCALPHA)
+        
+        # 2. Calculate the grid boundaries
+        # Assuming your player is in the center of the 11x11 grid (5 tiles in every direction)
+        vision_radius = 5 
+        
+        # Find the player's current tile grid coordinate
+        player_tile_x = int(self.player.x // self.tile_size)
+        player_tile_y = int(self.player.y // self.tile_size)
+        
+        # Calculate the top-left pixel of the 11x11 box
+        start_x = (player_tile_x - vision_radius) * self.tile_size
+        start_y = (player_tile_y - vision_radius) * self.tile_size
+        
+        # The total width/height of the 11x11 box in pixels
+        box_size = 11 * self.tile_size
+        
+        # 3. Draw the main tinted bounding box (Red with 50/255 opacity)
+        pygame.draw.rect(overlay, (255, 0, 0, 50), (start_x, start_y, box_size, box_size))
+        
+        # 4. Draw the individual tile grid lines inside the box
+        for i in range(12): # 12 lines to make 11 columns/rows
+            line_pos_x = start_x + (i * self.tile_size)
+            line_pos_y = start_y + (i * self.tile_size)
+            
+            # Vertical lines
+            pygame.draw.line(overlay, (255, 0, 0, 150), (line_pos_x, start_y), (line_pos_x, start_y + box_size))
+            # Horizontal lines
+            pygame.draw.line(overlay, (255, 0, 0, 150), (start_x, line_pos_y), (start_x + box_size, line_pos_y))
+            
+        # 5. Slap the overlay onto the main screen
+        self.screen.blit(overlay, (0,0))
+
     def _get_observation(self):
         """Creates the 11x11 vision cone around the AI."""
-        vision_radius = 5
+        vision_radius = 7
+        grid_size = (vision_radius * 2) + 1
         obs = []
         
         int_y = int(self.player_y)
@@ -177,12 +250,15 @@ class PlatformerEnv(gym.Env):
                 else:
                     tile = self.level_data[r][c]
                     if tile == 'P': obs.append(1.0)
-                    elif tile == 'K': obs.append(-20.0)
-                    elif tile == 'G': obs.append(20.0)
-                    else: obs.append(-0.01) 
+                    elif tile == 'K': obs.append(-1.0)
+                    elif tile == 'W': obs.append(3.0) # INVISIBLE WAYPOINT!
+                    elif tile == 'G': obs.append(2.0)
+                    else: obs.append(0.0) 
                         
         return np.array(obs, dtype=np.float32)
-    def render(self):
+    def render(self, mode="human"):
+        
+
         """Draws a simple Pygame window to watch the AI learn."""
         # Initialize Pygame only once
         if not hasattr(self, 'screen'):
@@ -219,7 +295,7 @@ class PlatformerEnv(gym.Env):
         
         # Lock the framerate so we can actually see it (otherwise it's a blur)
         # You can change this to 120 or 200 if you want it to train faster while watching!
-        self.clock.tick(60) 
+        self.clock.tick(500) 
         
         # Keep the window from freezing
         for event in pygame.event.get():

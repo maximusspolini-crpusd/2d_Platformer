@@ -1,17 +1,15 @@
 from stable_baselines3 import PPO
 from platformer_env import PlatformerEnv
+import os
 
 # 1. Boot up the invisible matrix version of your game
 env = PlatformerEnv()
 
-# 2. Give the AI a brain (PPO is the best algorithm for 2D platformers)
-model = PPO("MlpPolicy", env, learning_rate=0.00007, verbose=1)
-
 from stable_baselines3.common.callbacks import CheckpointCallback
 
 # --- 10 HOUR SETTINGS ---
-FPS_ESTIMATE = 500
-HOURS = 10
+FPS_ESTIMATE = 730
+HOURS = 3
 TOTAL_STEPS = HOURS * 60 * 60 * FPS_ESTIMATE 
 SAVE_FREQ = 500000 # Save every 500k steps (approx every 15-20 mins)
 
@@ -23,27 +21,18 @@ checkpoint_callback = CheckpointCallback(
     name_prefix="ai_marathon_checkpoint"
 )
 
-# 2. Initialize Model (Optimized for 10-hour marathon)
-model = PPO(
-    "MlpPolicy", 
-    env, 
-    learning_rate=0.0001,  # Gentle learning for long runs
-    verbose=1
-)
+OLD_BRAIN_FILE = "brain.zip" # Change to the name of your best save!
+NEW_BRAIN_FILE = "brain2.zip"
 
-print(f"🚀 DARK TRAINING STARTED")
-print(f"💾 Saving checkpoints to ./logs/ every {SAVE_FREQ:,} steps")
+if os.path.exists(OLD_BRAIN_FILE):
+    print(f"🧠 Veteran brain '{OLD_BRAIN_FILE}' found! Booting it up...")
+    model = PPO.load(OLD_BRAIN_FILE, env=env)
+else:
+    print("🌱 No previous brain found. Birthing a brand new AI...")
+    model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./ppo_platformer_tensorboard/")
 
-# 3. Start the Grind
-try:
-    model.learn(
-        total_timesteps=TOTAL_STEPS, 
-        callback=checkpoint_callback,
-        progress_bar=True
-    )
-except KeyboardInterrupt:
-    print("\n⚠️ Manually stopped. Saving current progress...")
+print("🚀 Launching Dark Training...")
+model.learn(total_timesteps=100000, callback=checkpoint_callback, progress_bar=False)
 
-# 4. Final Master Save
-model.save("god_tier_ai_final")
-print("✅ MARATHON COMPLETE. Final brain: god_tier_ai_final.zip")
+model.save(NEW_BRAIN_FILE)
+print(f"💾 Success! Upgraded brain saved as: {NEW_BRAIN_FILE}")

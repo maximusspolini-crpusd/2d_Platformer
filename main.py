@@ -54,14 +54,16 @@ def get_world_coords(mouse_x, mouse_y, camera_x, camera_y, zoom):
 
 def get_ai_observation(level_data, player_grid_x, player_grid_y):
     """Crops a 11x11 grid around the player for the AI brain."""
-    vision_radius = 5
+    vision_radius = 7
     obs = []
     int_y = int(player_grid_y)
     int_x = int(player_grid_x)
     
     for r in range(int_y - vision_radius, int_y + vision_radius + 1):
         for c in range(int_x - vision_radius, int_x + vision_radius + 1):
-            if r < 0 or r >= len(level_data) or c < 0 or c >= len(level_data[0]):
+            if r < 0 or r >= len(level_data):
+                obs.append(1.0) # Treat out of bounds as Wall
+            elif c < 0 or c >= len(level_data[r]):
                 obs.append(1.0) # Treat out of bounds as Wall
             else:
                 tile = level_data[r][c]
@@ -183,10 +185,10 @@ load_level(current_level)
 # Load AI
 print("Loading AI Brain...")
 try:
-    ai_brain = PPO.load("smart_platformer_bot")
+    ai_brain = PPO.load("brain2")
     print("AI Brain Loaded Successfully!")
 except:
-    print("Warning: smart_platformer_bot.zip not found. Manual play only.")
+    print("Warning: ai_brain.zip not found. Manual play only.")
     ai_is_playing = False
 
 # Main Loop
@@ -222,7 +224,7 @@ while running:
         # Add a print here to debug if it's still stuck!
         # print(f"AI Position: {grid_x}, {grid_y} | Vision: {obs[:5]}") 
         
-        action, _ = ai_brain.predict(obs, deterministic=False)
+        action, _ = ai_brain.predict(obs, deterministic=True)
         
         move_l = action in [1, 4]
         move_r = action in [2, 5]
