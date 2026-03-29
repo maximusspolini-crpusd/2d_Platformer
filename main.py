@@ -1,5 +1,6 @@
 import pygame
-
+from stable_baselines3 import PPO
+import numpy as np
 
 
 pygame.init()
@@ -169,45 +170,46 @@ class Player:
     #   Made by AI
     # ------------------------
     
-    def update(self, platforms, long_platforms, hazards, ihazards, goal):
-
-
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_a]:
+    def update(self, platforms, long_platforms, hazards, ihazards, goal, moving_left=False, moving_right=False, jumping=False):
+        
+        # --- HORIZONTAL MOVEMENT ---
+        if moving_left:
             self.vel_x -= self.max_speed
-        if keys[pygame.K_d]:
+        if moving_right:
             self.vel_x += self.max_speed
-        else:
-            if self.on_ground:  
+            
+        # (Slight fix here: made it check that BOTH are false before applying friction, 
+        # otherwise moving left would accidentally trigger friction!)
+        if not moving_left and not moving_right: 
+            if self.on_ground:
                 self.vel_x *= self.ground_friction
             else:
                 self.vel_x *= self.air_friction
-            
+
         if self.vel_x > self.max_speed: self.vel_x = self.max_speed
         if self.vel_x < -self.max_speed: self.vel_x = -self.max_speed
-        
+
         if abs(self.vel_x) < 0.1:
             self.vel_x = 0
-            
-        #terminal velo
+
+        # terminal velo
         if self.vel_y > 15:
             self.vel_y = 15
 
         dy = self.vel_y
 
-        
-        
         self.rect.x += self.vel_x
-            
+
+        # --- X COLLISIONS ---
         for platform in platforms:
             if self.rect.colliderect(platform):
-                if self.vel_x > 0: 
+                if self.vel_x > 0:
                     self.rect.right = platform.left
                     self.vel_x = 0
-                elif self.vel_x < 0: 
+                elif self.vel_x < 0:
                     self.rect.left = platform.right
                     self.vel_x = 0
-                    
+
         for lplatform in long_platforms:
             if self.rect.colliderect(lplatform):
                 if self.vel_x > 0:
@@ -216,44 +218,41 @@ class Player:
                 elif self.vel_x < 0:
                     self.rect.left = lplatform.right
                     self.vel_x = 0
-            
 
-        # --- JUMP LOGIC  ---
-        if keys[pygame.K_SPACE] and self.coyote_timer > 0:
-            self.vel_y = JUMP_STRENGTH
-            self.coyote_timer = 0  
+        # --- JUMP LOGIC ---
+        if jumping and self.coyote_timer > 0:
+            self.vel_y = JUMP_STRENGTH # Make sure JUMP_STRENGTH is defined in your class/globally!
+            self.coyote_timer = 0
             self.on_ground = False
 
-
-        self.vel_y += GRAVITY
+        self.vel_y += GRAVITY # Make sure GRAVITY is defined!
         dy = self.vel_y
 
-
         self.rect.y += dy
-        self.on_ground = False 
-        
+        self.on_ground = False
+
+        # --- Y COLLISIONS ---
         for platform in platforms:
             if self.rect.colliderect(platform):
-                if self.vel_y > 0: 
+                if self.vel_y > 0:
                     self.rect.bottom = platform.top
                     self.vel_y = 0
                     self.on_ground = True
-                    self.coyote_timer = self.coyote_max 
-                elif self.vel_y < 0: 
+                    self.coyote_timer = self.coyote_max
+                elif self.vel_y < 0:
                     self.rect.top = platform.bottom
                     self.vel_y = 0
 
         for lplatform in long_platforms:
             if self.rect.colliderect(lplatform):
-                if self.vel_y > 0: 
+                if self.vel_y > 0:
                     self.rect.bottom = lplatform.top
                     self.vel_y = 0
                     self.on_ground = True
-                    self.coyote_timer = self.coyote_max 
-                elif self.vel_y < 0: 
+                    self.coyote_timer = self.coyote_max
+                elif self.vel_y < 0:
                     self.rect.top = lplatform.bottom
                     self.vel_y = 0
-
 
         if not self.on_ground and self.coyote_timer > 0:
             self.coyote_timer -= 1
@@ -266,6 +265,32 @@ player = Player(50, 50)
 load_level(current_level)
 running = True
 
+
+# Load the trained AI
+print("Loading AI Brain...")
+ai_brain = PPO.load("smart_platformer_bot")
+
+
+def get_ai_observation(level_data, player_grid_x, player_grid_y):
+    """Generates the exact 5x5 grid the AI was trained on."""
+    vision_radius = 2 
+    obs = []
+    
+    int_y = int(player_grid_y)
+    int_x = int(player_grid_x)
+    
+    for r in range(int_y - vision_radius, int_y + vision_radius + 1):
+        for c in range(int_x - vision_radius, int_x + vision_radius + 1):
+            if r < 0 or r >= len(level_data) or c < 0 or c >= len(level_data[0]):
+                obs.append(1.0) # Wall
+            else:
+                tile = level_data[r][c]
+                if tile == 'P': obs.append(1.0)
+                elif tile == 'K': obs.append(-1.0)
+                elif tile == 'G': obs.append(2.0)
+                else: obs.append(0.0) 
+                    
+    return np.array(obs, dtype=np.float32)
 
 
 
