@@ -85,7 +85,7 @@ class PlatformerEnv(gym.Env):
         
         self.player = Player(0, 0)
         self.level_data = []
-        self.max_steps = 700 # Give it 700 frames to beat the level
+        self.max_steps = 1000 # Give it 700 frames to beat the level
 
     def reset(self, seed=None):
         super().reset(seed=seed)
