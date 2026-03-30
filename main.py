@@ -272,7 +272,7 @@ while running:
     pygame.draw.rect(screen, PLAYER_COLOR, (px, py, player.rect.width * zoom, player.rect.height * zoom))
 
     # UI
-    mode_text = "AI MODE" if ai_is_playing else "MANUAL MODE"
+    mode_text = "" if ai_is_playing else "MANUAL MODE"
     lvl_surf = ui_font.render(f"LEVEL: {current_level} | {mode_text}", True, (255, 255, 255))
     screen.blit(lvl_surf, (20, 20))
 
