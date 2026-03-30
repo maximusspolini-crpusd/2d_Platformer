@@ -24,19 +24,7 @@ class PlatformerEnv(gym.Env):
         self.y_velocity = 0.0
         self.is_grounded = False
         self.level_data = []
-         # --- ADD THIS TO YOUR __INIT__ FUNCTION ---
-        self.waypoints = []
-        for r, row in enumerate(self.level_data):
-            for c, tile in enumerate(row):
-                if tile == 'W':
-                    # Save the pixel coordinates of the Waypoint
-                    self.waypoints.append((c * self.tile_size, r * self.tile_size))
         
-        # Sort them by X-coordinate (left to right) so the AI hits them in order
-        self.waypoints.sort(key=lambda wp: wp[0])
-        
-        self.current_wp_index = 0
-        self.prev_distance = None
 
     def reset(self, seed=None):
         """Builds a new level and drops the player at Spawn."""
@@ -55,24 +43,24 @@ class PlatformerEnv(gym.Env):
             'P                                                     P',
             'P                                                     P',
             'P                                                     P',
-            'P                                                 W   P',
             'P                                                     P',
+            'P                           W        W       W        P',
             'P                           P        PP      PP       P',
             'P                           P                         P',
             'P                           P                         P',
-            'P  S           W            P                         P',
+            'P  S        W       W       P                         P',
             'PPPPPP       PPPP    PP     PKKKKKKKKKKKKKKKKKK       P',
             'PKKKKKKKKKKKKKKKKKKKKKKKKKKKPPPPPPPPPPPPPPPPPPP       P',
             'PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP       P',
-            'P                                                     P',
+            'P                                                  W  P',
             'P                                                     P',
             'P                                                     P',
             'P                                                     P',
             'P                                                     P',
             'G                                                     P',
             'G                                            W        P',
-            'G                                                     P',
-            'G   W                                                 P',
+            'G                          W                          P',
+            'G   W   W       W                                     P',
             'PPPPP    PP     PP      PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP',
             'P                       P',
             'PKKKKKKKKKKKKKKKKKKKKKKKP',
@@ -87,6 +75,18 @@ class PlatformerEnv(gym.Env):
                     self.player_x = c
                     self.player_y = r
                     
+        # --- THE FIX: WAYPOINT SCANNER ---
+        self.waypoints = []
+        for r, row in enumerate(self.level_data):
+            for c, tile in enumerate(row):
+                if tile == 'W':
+                    # Save grid coordinates (c, r) instead of pixel coordinates!
+                    self.waypoints.append((c, r)) 
+                    
+        # Sort them left-to-right
+        self.waypoints.sort(key=lambda wp: wp[0])
+        # ---------------------------------
+                    
         self.y_velocity = 0.0
         self.is_grounded = True
         self.current_wp_index = 0
@@ -96,6 +96,7 @@ class PlatformerEnv(gym.Env):
 
     def step(self, action):
         """Runs one frame of the game."""
+        reward = 0
         
         # --- 1. X-AXIS MOVEMENT ---
         dx = 0
@@ -120,6 +121,8 @@ class PlatformerEnv(gym.Env):
             self.y_velocity = -1.5 # Jump power (negative goes up)
             self.is_grounded = False
             
+            reward -= 0.01
+            
         # Apply Gravity
         self.y_velocity += 0.5 # Gravity pulls down
         if self.y_velocity > 1.5:  # Terminal velocity
@@ -142,13 +145,13 @@ class PlatformerEnv(gym.Env):
             self.is_grounded = False
 
         # --- 3. REWARDS AND GAME OVER LOGIC ---
-        reward = 0
+   
         done = False
         
             
         # Penalize standing still
         if action == 0:
-            reward -= 1
+            reward -= 0
 
         # Check what tile the player is currently inside
         current_tile = '.'
@@ -157,7 +160,7 @@ class PlatformerEnv(gym.Env):
 
         # Did they hit spikes?
         if current_tile == 'K':
-            reward -= 20 # Massive penalty
+            reward -= 1 # Massive penalty
             done = True
             print("AI Died!")
 
@@ -170,29 +173,26 @@ class PlatformerEnv(gym.Env):
         # Turn on the visualizer!
         #self.render()
         #pygame.display.flip()
-        # --- ADD THIS INSIDE step() RIGHT BEFORE RETURNING ---
+        # --- WAYPOINT REWARDS ---
         import math
         
         if self.current_wp_index < len(self.waypoints):
-            # Get the coordinates of the currently active waypoint
             target_x, target_y = self.waypoints[self.current_wp_index]
             
-            # Calculate distance to it
-            dist = math.hypot(target_x - self.player.x, target_y - self.player.y)
+            # Use player_x and player_y (grid math), NOT player.x!
+            dist = math.hypot(target_x - self.player_x, target_y - self.player_y)
             
-            # 1. Proximity Reward (Getting closer = Good!)
             if self.prev_distance is not None:
-                # If we moved 5 pixels closer, we get a small positive reward.
                 distance_improvement = self.prev_distance - dist
-                reward += distance_improvement * 0.1 
+                reward += distance_improvement * 0.5 # Lure it right!
                 
             self.prev_distance = dist
             
-            # 2. Check if we are within range to "collect" it (e.g., 1 tile width)
-            if dist < self.tile_size: 
-                self.current_wp_index += 1 # Target the next 'W'
-                reward += 50.0 # BIG BONUS for collecting it!
-                self.prev_distance = None # Reset distance tracker for the new target
+            # If AI gets within 1.5 grid blocks of the Waypoint
+            if dist < 1.5: 
+                self.current_wp_index += 1 
+                reward += 5.0 # Tasty breadcrumb!
+                self.prev_distance = None
         
         return self._get_observation(), reward, done, False, {}
 
