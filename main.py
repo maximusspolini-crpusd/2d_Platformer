@@ -27,7 +27,7 @@ checkpoint_color = (255, 255, 255)
 
 # Game State
 debug = False
-ai_is_playing = True # SET THIS TO FALSE IF YOU WANT TO PLAY MANUALLY
+ai_is_playing = False # SET THIS TO FALSE IF YOU WANT TO PLAY MANUALLY
 current_level = 1  
 zoom = 1.0  
 teleport_cooldown = 100
@@ -54,7 +54,7 @@ def get_world_coords(mouse_x, mouse_y, camera_x, camera_y, zoom):
 
 def get_ai_observation(level_data, player_grid_x, player_grid_y):
     """Crops a 11x11 grid around the player for the AI brain."""
-    vision_radius = 7
+    vision_radius = 5
     obs = []
     int_y = int(player_grid_y)
     int_x = int(player_grid_x)
@@ -186,7 +186,7 @@ load_level(current_level)
 # Load AI
 print("Loading AI Brain...")
 try:
-    ai_brain = PPO.load("brain4")
+    ai_brain = PPO.load("brain")
     print("AI Brain Loaded Successfully!")
 except:
     print("Warning: ai_brain.zip not found. Manual play only.")

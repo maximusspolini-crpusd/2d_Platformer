@@ -1,39 +1,96 @@
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
-import random
 import pygame
+import math
+
+# --- MATCHING PHYSICS CONSTANTS FROM MAIN.PY ---
+TILE_SIZE = 30
+GRAVITY = 0.8
+JUMP_STRENGTH = -17
+
+# --- 1. THE PLAYER CLASS (Copied from main.py) ---
+class Player:
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x, y, 30, 30)
+        self.vel_y = 0
+        self.vel_x = 0
+        self.on_ground = False
+        self.max_speed = 5
+        self.ground_friction = 0.7
+        self.air_friction = 0.8
+        self.coyote_timer = 0
+        self.coyote_max = 10 
+
+    def reset_position(self, start_x, start_y):
+        self.vel_x = 0
+        self.vel_y = 0
+        self.rect.x = start_x
+        self.rect.y = start_y
+
+    def update(self, platforms, long_platforms, hazards, ihazards, goal, moving_left=False, moving_right=False, jumping=False):
+        # Horizontal
+        if moving_left: self.vel_x -= 1.0
+        if moving_right: self.vel_x += 1.0
+        
+        if not moving_left and not moving_right:
+            self.vel_x *= self.ground_friction if self.on_ground else self.air_friction
+
+        self.vel_x = max(-self.max_speed, min(self.max_speed, self.vel_x))
+        if abs(self.vel_x) < 0.1: self.vel_x = 0
+
+        self.rect.x += self.vel_x
+        for p in platforms + long_platforms:
+            if self.rect.colliderect(p):
+                if self.vel_x > 0: self.rect.right = p.left
+                elif self.vel_x < 0: self.rect.left = p.right
+                self.vel_x = 0
+
+        # Vertical
+        if jumping and self.coyote_timer > 0:
+            self.vel_y = JUMP_STRENGTH
+            self.coyote_timer = 0
+            self.on_ground = False
+
+        self.vel_y += GRAVITY
+        self.vel_y = min(15, self.vel_y)
+        self.rect.y += self.vel_y
+        self.on_ground = False
+
+        for p in platforms + long_platforms:
+            if self.rect.colliderect(p):
+                if self.vel_y > 0:
+                    self.rect.bottom = p.top
+                    self.vel_y = 0
+                    self.on_ground = True
+                    self.coyote_timer = self.coyote_max
+                elif self.vel_y < 0:
+                    self.rect.top = p.bottom
+                    self.vel_y = 0
+
+        if not self.on_ground and self.coyote_timer > 0:
+            self.coyote_timer -= 1
 
 
+# --- 2. THE ENVIRONMENT CLASS ---
 class PlatformerEnv(gym.Env):
     def __init__(self):
         super(PlatformerEnv, self).__init__()
-    # ... rest of your init code ...
         
-        # --- 1. THE CONTROLLER (ACTIONS) ---
         # 0: Idle, 1: Left, 2: Right, 3: Jump, 4: Jump Left, 5: Jump Right
         self.action_space = spaces.Discrete(6)
         
-        # --- 2. THE EYES (OBSERVATION) ---
-        # 5x5 grid = 25 numbers
-        self.observation_space = spaces.Box(low=0, high=255, shape=(225,), dtype=np.float32)
+        # Vision: 15x15 grid (Radius of 7 = 15 tiles. 15 * 15 = 225)
+        self.observation_space = spaces.Box(low=-1.0, high=3.0, shape=(121,), dtype=np.float32)
         
-        # --- 3. PHYSICS VARIABLES ---
-        self.player_x = 0
-        self.player_y = 0
-        self.y_velocity = 0.0
-        self.is_grounded = False
+        self.player = Player(0, 0)
         self.level_data = []
-        
+        self.max_steps = 700 # Give it 700 frames to beat the level
 
     def reset(self, seed=None):
-        """Builds a new level and drops the player at Spawn."""
         super().reset(seed=seed)
         
-        # (Replace this with your actual generation function later)
-        # self.level_data = generate_perfect_climber(length=10) 
-        
-        # Dummy level for testing right now:
+        # Dummy level for testing
         self.level_data = [
             'PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP',
             'Pkkkk                                                 P',
@@ -44,11 +101,11 @@ class PlatformerEnv(gym.Env):
             'P                                                     P',
             'P                                                     P',
             'P                                                     P',
-            'P                           W        W       W        P',
+            'P                           W                W        P',
             'P                           P        PP      PP       P',
             'P                           P                         P',
             'P                           P                         P',
-            'P  S        W       W       P                         P',
+            'P  S                W       P                         P',
             'PPPPPP       PPPP    PP     PKKKKKKKKKKKKKKKKKK       P',
             'PKKKKKKKKKKKKKKKKKKKKKKKKKKKPPPPPPPPPPPPPPPPPPP       P',
             'PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP       P',
@@ -60,244 +117,165 @@ class PlatformerEnv(gym.Env):
             'G                                                     P',
             'G                                            W        P',
             'G                          W                          P',
-            'G   W   W       W                                     P',
+            'G                                                     P',
             'PPPPP    PP     PP      PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP',
             'P                       P',
             'PKKKKKKKKKKKKKKKKKKKKKKKP',
             'PPPPPPPPPPPPPPPPPPPPPPPPP'
-
         ]
         
-        # Find the 'S' to set spawn coordinates
+        # Physics hitboxes
+        self.platforms = []
+        self.hazards = []
+        self.finish_blocks = []
+        self.waypoints = []
+        start_x, start_y = 0, 0
+        
         for r, row in enumerate(self.level_data):
             for c, char in enumerate(row):
-                if char == 'S':
-                    self.player_x = c
-                    self.player_y = r
-                    
-        # --- THE FIX: WAYPOINT SCANNER ---
-        self.waypoints = []
-        for r, row in enumerate(self.level_data):
-            for c, tile in enumerate(row):
-                if tile == 'W':
-                    # Save grid coordinates (c, r) instead of pixel coordinates!
+                x = c * TILE_SIZE
+                y = r * TILE_SIZE
+                
+                if char == 'P': self.platforms.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
+                elif char == 'K' or char == 'k': self.hazards.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
+                elif char == 'G': self.finish_blocks.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
+                elif char == 'S': 
+                    start_x, start_y = x, y
+                elif char == 'W':
                     self.waypoints.append((c, r)) 
                     
-        # Sort them left-to-right
         self.waypoints.sort(key=lambda wp: wp[0])
-        # ---------------------------------
-                    
-        self.y_velocity = 0.0
-        self.is_grounded = True
+        
+        self.player.reset_position(start_x, start_y)
+        self.current_step = 0
         self.current_wp_index = 0
-        self.prev_distance = None
+        self.closest_dist = float('inf')
         
         return self._get_observation(), {}
 
     def step(self, action):
-        """Runs one frame of the game."""
+        self.current_step += 1
         reward = 0
-        
-        # --- 1. X-AXIS MOVEMENT ---
-        dx = 0
-        if action in [1, 4]: # Left or Jump Left
-            dx = -1
-        elif action in [2, 5]: # Right or Jump Right
-            dx = 1
-            
-        # Check X collisions
-        new_x = self.player_x + dx
-        if 0 <= new_x < len(self.level_data[0]): # Keep on screen horizontally
-            
-            # THE FIX: Check if the player is safely inside the vertical map bounds first!
-            if 0 <= int(self.player_y) < len(self.level_data):
-                if self.level_data[int(self.player_y)][int(new_x)] != 'P':
-                    self.player_x = new_x # Move if not hitting a wall
-            else:
-                self.player_x = new_x # If they are above the map in the sky, let them move freely
-
-        # --- 2. Y-AXIS MOVEMENT (GRAVITY & JUMPING) ---
-        if action in [3, 4, 5] and self.is_grounded:
-            self.y_velocity = -1.5 # Jump power (negative goes up)
-            self.is_grounded = False
-            
-            reward -= 0.01
-            
-        # Apply Gravity
-        self.y_velocity += 0.5 # Gravity pulls down
-        if self.y_velocity > 1.5:  # Terminal velocity
-            self.y_velocity = 1.5 
-            
-        new_y = self.player_y + self.y_velocity
-        
-        # Check Y collisions (Floor/Ceiling)
-        if self.y_velocity > 0: # Falling Down
-            # If the block below us is a Platform ('P')
-            if int(new_y) < len(self.level_data) and self.level_data[int(new_y)][int(self.player_x)] == 'P':
-                self.player_y = int(new_y) - 1 # Snap to top of platform
-                self.y_velocity = 0
-                self.is_grounded = True
-            else:
-                self.player_y = new_y
-                self.is_grounded = False
-        else: # Jumping Up
-            self.player_y = new_y
-            self.is_grounded = False
-
-        # --- 3. REWARDS AND GAME OVER LOGIC ---
-   
         done = False
+        truncated = False
         
+        # --- 1. AI CONTROLS ---
+        move_l = action in [1, 4]
+        move_r = action in [2, 5]
+        jump = action in [3, 4, 5]
+        
+        # The Jump Penalty! Stops the AI from pogo-sticking everywhere.
+        if jump:
+            reward -= 0.05 
             
-        # Penalize standing still
-        if action == 0:
-            reward -= 0
+        # --- 2. RUN REAL PHYSICS ENGINE ---
+        self.player.update(self.platforms, [], self.hazards, [], self.finish_blocks, move_l, move_r, jump)
 
-        # Check what tile the player is currently inside
-        current_tile = '.'
-        if 0 <= int(self.player_y) < len(self.level_data):
-            current_tile = self.level_data[int(self.player_y)][int(self.player_x)]
-
-        # Did they hit spikes?
-        if current_tile == 'K':
-            reward -= 1 # Massive penalty
-            done = True
-            print("AI Died!")
+        # --- 3. REWARDS & COLLISIONS ---
+        # Did they hit spikes? (Using actual hitbox collision now!)
+        for h in self.hazards:
+            if self.player.rect.colliderect(h):
+                reward -= 10.0
+                done = True
+                print("AI Died to Spikes!")
+                break
 
         # Did they touch the Goal?
-        elif current_tile == 'G':
-            reward += 1000 # Massive reward
-            done = True
-            print("AI BEAT THE LEVEL!")
+        for g in self.finish_blocks:
+            if self.player.rect.colliderect(g):
+                reward += 1000.0 
+                done = True
+                print("AI BEAT THE LEVEL!")
+                break
 
-        # Turn on the visualizer!
-        #self.render()
-        #pygame.display.flip()
-        # --- WAYPOINT REWARDS ---
-        import math
-        
+        # --- 4. WAYPOINT BREADCRUMBS ---
         if self.current_wp_index < len(self.waypoints):
             target_x, target_y = self.waypoints[self.current_wp_index]
             
-            # Use player_x and player_y (grid math), NOT player.x!
-            dist = math.hypot(target_x - self.player_x, target_y - self.player_y)
+            # Convert player pixel coordinates into Grid coordinates for the math
+            grid_x = self.player.rect.centerx / TILE_SIZE
+            grid_y = self.player.rect.centery / TILE_SIZE
             
-            if self.prev_distance is not None:
-                distance_improvement = self.prev_distance - dist
-                reward += distance_improvement * 0.5 # Lure it right!
-                
-            self.prev_distance = dist
+            dist = math.hypot(target_x - grid_x, target_y - grid_y)
+            
+            # Only reward the AI if it beats its previous best distance!
+            if dist < self.closest_dist:
+                distance_improvement = self.closest_dist - dist
+                # Reward based on how much closer it got
+                if self.closest_dist != float('inf'):
+                    reward += distance_improvement * 2.0 
+                self.closest_dist = dist
             
             # If AI gets within 1.5 grid blocks of the Waypoint
             if dist < 1.5: 
                 self.current_wp_index += 1 
-                reward += 5.0 # Tasty breadcrumb!
-                self.prev_distance = None
-        
-        return self._get_observation(), reward, done, False, {}
+                reward += 10.0 # Tasty breadcrumb!
+                self.closest_dist = float('inf') # Reset record for the next waypoint
+                
+        # --- 5. TIMEOUT CLOCK ---
+        if self.current_step >= self.max_steps and not done:
+            reward -= 5.0 # Punish it for wasting time
+            done = True
+            truncated = True
+            print("AI Ran out of time!")
 
-    def draw_ai_vision(self):
-        """Draws a semi-transparent 11x11 grid around the player."""
-        if not hasattr(self, 'screen') or self.screen is None:
-            return # Skip drawing if there is no window (Dark Mode)
-        # 1. Create a transparent surface the size of your screen
-        overlay = pygame.Surface((self.screen.get_width(), self.screen.get_height()), pygame.SRCALPHA)
-        
-        # 2. Calculate the grid boundaries
-        # Assuming your player is in the center of the 11x11 grid (5 tiles in every direction)
-        vision_radius = 5 
-        
-        # Find the player's current tile grid coordinate
-        player_tile_x = int(self.player.x // self.tile_size)
-        player_tile_y = int(self.player.y // self.tile_size)
-        
-        # Calculate the top-left pixel of the 11x11 box
-        start_x = (player_tile_x - vision_radius) * self.tile_size
-        start_y = (player_tile_y - vision_radius) * self.tile_size
-        
-        # The total width/height of the 11x11 box in pixels
-        box_size = 11 * self.tile_size
-        
-        # 3. Draw the main tinted bounding box (Red with 50/255 opacity)
-        pygame.draw.rect(overlay, (255, 0, 0, 50), (start_x, start_y, box_size, box_size))
-        
-        # 4. Draw the individual tile grid lines inside the box
-        for i in range(12): # 12 lines to make 11 columns/rows
-            line_pos_x = start_x + (i * self.tile_size)
-            line_pos_y = start_y + (i * self.tile_size)
-            
-            # Vertical lines
-            pygame.draw.line(overlay, (255, 0, 0, 150), (line_pos_x, start_y), (line_pos_x, start_y + box_size))
-            # Horizontal lines
-            pygame.draw.line(overlay, (255, 0, 0, 150), (start_x, line_pos_y), (start_x + box_size, line_pos_y))
-            
-        # 5. Slap the overlay onto the main screen
-        self.screen.blit(overlay, (0,0))
+        return self._get_observation(), reward, done, truncated, {}
 
     def _get_observation(self):
-        """Creates the 11x11 vision cone around the AI."""
-        vision_radius = 7
-        grid_size = (vision_radius * 2) + 1
+        """Creates the 15x15 vision cone around the AI."""
+        vision_radius = 5
         obs = []
         
-        int_y = int(self.player_y)
-        int_x = int(self.player_x)
+        # Translate the center of the player's hitbox into a grid coordinate
+        int_x = int(self.player.rect.centerx // TILE_SIZE)
+        int_y = int(self.player.rect.centery // TILE_SIZE)
         
         for r in range(int_y - vision_radius, int_y + vision_radius + 1):
             for c in range(int_x - vision_radius, int_x + vision_radius + 1):
                 if r < 0 or r >= len(self.level_data) or c < 0 or c >= len(self.level_data[0]):
-                    obs.append(1.0) # Out of bounds looks like a solid wall
+                    obs.append(1.0) # Wall
                 else:
                     tile = self.level_data[r][c]
                     if tile == 'P': obs.append(1.0)
-                    elif tile == 'K': obs.append(-1.0)
-                    elif tile == 'W': obs.append(3.0) # INVISIBLE WAYPOINT!
+                    elif tile == 'K' or tile == 'k': obs.append(-1.0)
+                    elif tile == 'W': obs.append(3.0)
                     elif tile == 'G': obs.append(2.0)
                     else: obs.append(0.0) 
                         
         return np.array(obs, dtype=np.float32)
-    def render(self, mode="human"):
-        
 
+    def render(self, mode="human"):
         """Draws a simple Pygame window to watch the AI learn."""
-        # Initialize Pygame only once
         if not hasattr(self, 'screen'):
             pygame.init()
-            self.cell_size = 25 # Size of each block
+            self.cell_size = 25 
             width = len(self.level_data[0]) * self.cell_size
             height = len(self.level_data) * self.cell_size
             self.screen = pygame.display.set_mode((width, height))
             pygame.display.set_caption("AI Training Vision")
             self.clock = pygame.time.Clock()
 
-        # Fill background with black
         self.screen.fill((0, 0, 0))
 
         # Draw the map
         for r, row in enumerate(self.level_data):
             for c, char in enumerate(row):
                 rect = pygame.Rect(c * self.cell_size, r * self.cell_size, self.cell_size, self.cell_size)
-                if char == 'P': 
-                    pygame.draw.rect(self.screen, (100, 100, 100), rect) # Gray platforms
-                elif char == 'K': 
-                    pygame.draw.rect(self.screen, (255, 0, 0), rect)     # Red spikes
-                elif char == 'G': 
-                    pygame.draw.rect(self.screen, (0, 255, 0), rect)     # Green goal
-                elif char == 'S': 
-                    pygame.draw.rect(self.screen, (255, 255, 0), rect, 1) # Yellow outline for spawn
+                if char == 'P': pygame.draw.rect(self.screen, (100, 100, 100), rect) 
+                elif char == 'K' or char == 'k': pygame.draw.rect(self.screen, (255, 0, 0), rect) 
+                elif char == 'G': pygame.draw.rect(self.screen, (0, 255, 0), rect) 
+                elif char == 'S': pygame.draw.rect(self.screen, (255, 255, 0), rect, 1) 
+                elif char == 'W': pygame.draw.rect(self.screen, (255, 0, 255), rect, 1) # Purple waypoints
 
-        # Draw the AI Player (Blue Square)
-        player_rect = pygame.Rect(int(self.player_x) * self.cell_size, int(self.player_y) * self.cell_size, self.cell_size, self.cell_size)
+        # Draw the AI Player using a converted physical position
+        px = (self.player.rect.x / TILE_SIZE) * self.cell_size
+        py = (self.player.rect.y / TILE_SIZE) * self.cell_size
+        player_rect = pygame.Rect(int(px), int(py), self.cell_size, self.cell_size)
         pygame.draw.rect(self.screen, (0, 150, 255), player_rect) 
 
-        # Update the screen
         pygame.display.flip()
-        
-        # Lock the framerate so we can actually see it (otherwise it's a blur)
-        # You can change this to 120 or 200 if you want it to train faster while watching!
         self.clock.tick(500) 
         
-        # Keep the window from freezing
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
