@@ -85,7 +85,7 @@ class PlatformerEnv(gym.Env):
         
         self.player = Player(0, 0)
         self.level_data = []
-        self.max_steps = 1000 # Give it 700 frames to beat the level
+        self.max_steps = 2000 # Give it 700 frames to beat the level
 
     def reset(self, seed=None):
         super().reset(seed=seed)
@@ -101,11 +101,11 @@ class PlatformerEnv(gym.Env):
             'P                                                     P',
             'P                                                     P',
             'P                                                     P',
-            'P                           W                W        P',
+            'P                           1        2       33333    P',
             'P                           P        PP      PP       P',
             'P                           P                         P',
             'P                           P                         P',
-            'P  S                        P                         P',
+            'P  S           0            P                         P',
             'PPPPPP       PPPP    PP     PKKKKKKKKKKKKKKKKKK       P',
             'PKKKKKKKKKKKKKKKKKKKKKKKKKKKPPPPPPPPPPPPPPPPPPP       P',
             'PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP       P',
@@ -117,7 +117,7 @@ class PlatformerEnv(gym.Env):
             'G                                                     P',
             'G                                                     P',
             'G                                                     P',
-            'G        W                                  W         P',
+            'G6        5               4                           P',
             'PPPPP    PP     PP      PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP',
             'P                       P',
             'PKKKKKKKKKKKKKKKKKKKKKKKP',
@@ -128,7 +128,7 @@ class PlatformerEnv(gym.Env):
         self.platforms = []
         self.hazards = []
         self.finish_blocks = []
-        self.waypoints = []
+        temp_waypoints = {} # <--- Use a dictionary to store them temporarily
         start_x, start_y = 0, 0
         
         for r, row in enumerate(self.level_data):
@@ -141,10 +141,11 @@ class PlatformerEnv(gym.Env):
                 elif char == 'G': self.finish_blocks.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
                 elif char == 'S': 
                     start_x, start_y = x, y
-                elif char == 'W':
-                    self.waypoints.append((c, r)) 
+                elif char.isdigit(): # <--- If the character is a number 0-9
+                    temp_waypoints[int(char)] = (c, r) 
                     
-        self.waypoints.sort(key=lambda wp: wp[0])
+        # Securely lock in the waypoints by their numeric order!
+        self.waypoints = [temp_waypoints[i] for i in sorted(temp_waypoints.keys())]
         
         self.player.reset_position(start_x, start_y)
         self.current_step = 0
@@ -155,7 +156,7 @@ class PlatformerEnv(gym.Env):
 
     def step(self, action):
         self.current_step += 1
-        reward = 0
+        reward = 0.0
         done = False
         truncated = False
         
@@ -166,7 +167,7 @@ class PlatformerEnv(gym.Env):
         
         # The Jump Penalty! Stops the AI from pogo-sticking everywhere.
         if jump:
-            reward -= 0.05 
+            reward -= 0.01
             
         # --- 2. RUN REAL PHYSICS ENGINE ---
         self.player.update(self.platforms, [], self.hazards, [], self.finish_blocks, move_l, move_r, jump)
@@ -212,17 +213,33 @@ class PlatformerEnv(gym.Env):
                 reward += 10.0 # Tasty breadcrumb!
                 self.closest_dist = float('inf') # Reset record for the next waypoint
                 
-        # --- 5. TIMEOUT CLOCK ---
+            # --- 5. TIMEOUT CLOCK ---
         if self.current_step >= self.max_steps and not done:
             reward -= 5.0 # Punish it for wasting time
             done = True
             truncated = True
             print("AI Ran out of time!")
 
-        return self._get_observation(), reward, done, truncated, {}
+        # --- 6. CALCULATE TRUE LEVEL PROGRESS ---
+        total_waypoints = len(self.waypoints)
+        if total_waypoints > 0:
+            # Calculate exactly what percentage of the waypoints the AI cleared
+            progress_percent = (self.current_wp_index / total_waypoints) * 100
+        else:
+            progress_percent = 0.0
+
+        # We pack this into the 'info' dictionary so your training script 
+        # and TensorBoard can track the AI's actual physical progression
+        info = {
+            "level_progress": progress_percent,
+            "waypoints_cleared": self.current_wp_index
+        }
+
+        # Return the observation, reward, done states, and our new info dictionary!
+        return self._get_observation(), reward, done, truncated, info
 
     def _get_observation(self):
-        """Creates the 15x15 vision cone around the AI."""
+        """Creates the 11x11 vision cone around the AI."""
         vision_radius = 5
         obs = []
         
@@ -232,18 +249,20 @@ class PlatformerEnv(gym.Env):
         
         for r in range(int_y - vision_radius, int_y + vision_radius + 1):
             for c in range(int_x - vision_radius, int_x + vision_radius + 1):
-                if r < 0 or r >= len(self.level_data) or c < 0 or c >= len(self.level_data[0]):
-                    obs.append(1.0) # Wall
+                
+                # Check c against the length of the specific row: len(self.level_data[r])
+                if r < 0 or r >= len(self.level_data) or c < 0 or c >= len(self.level_data[r]):
+                    obs.append(1.0) # Wall (Out of bounds)
                 else:
                     tile = self.level_data[r][c]
                     if tile == 'P': obs.append(1.0)
                     elif tile == 'K' or tile == 'k': obs.append(-1.0)
-                    elif tile == 'W': obs.append(3.0)
+                    elif tile.isdigit(): obs.append(3.0)
                     elif tile == 'G': obs.append(2.0)
                     else: obs.append(0.0) 
                         
         return np.array(obs, dtype=np.float32)
-
+    
     def render(self, mode="human"):
         """Draws a simple Pygame window to watch the AI learn."""
         if not hasattr(self, 'screen'):
@@ -274,7 +293,7 @@ class PlatformerEnv(gym.Env):
         pygame.draw.rect(self.screen, (0, 150, 255), player_rect) 
 
         pygame.display.flip()
-        self.clock.tick(500) 
+        self.clock.tick(60) 
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

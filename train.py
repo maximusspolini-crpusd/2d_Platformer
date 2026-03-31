@@ -8,7 +8,7 @@ env = PlatformerEnv()
 from stable_baselines3.common.callbacks import CheckpointCallback
 
 # --- 10 HOUR SETTINGS ---
-FPS_ESTIMATE = 600
+FPS_ESTIMATE = 725
 HOURS = 9
 TOTAL_STEPS = HOURS * 60 * 60 * FPS_ESTIMATE 
 SAVE_FREQ = 500000 # Save every 500k steps (approx every 15-20 mins)
