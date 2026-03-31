@@ -186,7 +186,7 @@ load_level(current_level)
 # Load AI
 print("Loading AI Brain...")
 try:
-    ai_brain = PPO.load("brain")
+    ai_brain = PPO.load("brain3")
     print("AI Brain Loaded Successfully!")
 except:
     print("Warning: ai_brain.zip not found. Manual play only.")

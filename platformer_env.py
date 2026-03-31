@@ -105,19 +105,19 @@ class PlatformerEnv(gym.Env):
             'P                           P        PP      PP       P',
             'P                           P                         P',
             'P                           P                         P',
-            'P  S                W       P                         P',
+            'P  S                        P                         P',
             'PPPPPP       PPPP    PP     PKKKKKKKKKKKKKKKKKK       P',
             'PKKKKKKKKKKKKKKKKKKKKKKKKKKKPPPPPPPPPPPPPPPPPPP       P',
             'PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP       P',
-            'P                                                  W  P',
+            'P                                                     P',
             'P                                                     P',
             'P                                                     P',
             'P                                                     P',
             'P                                                     P',
             'G                                                     P',
-            'G                                            W        P',
-            'G                          W                          P',
             'G                                                     P',
+            'G                                                     P',
+            'G        W                                  W         P',
             'PPPPP    PP     PP      PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP',
             'P                       P',
             'PKKKKKKKKKKKKKKKKKKKKKKKP',
@@ -175,7 +175,7 @@ class PlatformerEnv(gym.Env):
         # Did they hit spikes? (Using actual hitbox collision now!)
         for h in self.hazards:
             if self.player.rect.colliderect(h):
-                reward -= 10.0
+                reward -= 5.0
                 done = True
                 print("AI Died to Spikes!")
                 break

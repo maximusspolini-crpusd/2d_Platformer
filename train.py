@@ -9,7 +9,7 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 
 # --- 10 HOUR SETTINGS ---
 FPS_ESTIMATE = 600
-HOURS = 0
+HOURS = 9
 TOTAL_STEPS = HOURS * 60 * 60 * FPS_ESTIMATE 
 SAVE_FREQ = 500000 # Save every 500k steps (approx every 15-20 mins)
 
@@ -21,8 +21,8 @@ checkpoint_callback = CheckpointCallback(
     name_prefix="ai_marathon_checkpoint"
 )
 
-OLD_BRAIN_FILE = "brain.zip" # Change to the name of your best save!
-NEW_BRAIN_FILE = "brain2.zip"
+OLD_BRAIN_FILE = "brain3.zip" # Change to the name of your best save!
+NEW_BRAIN_FILE = "brain4.zip"
 
 if os.path.exists(OLD_BRAIN_FILE):
     print(f"🧠 Veteran brain '{OLD_BRAIN_FILE}' found! Booting it up...")
@@ -32,7 +32,7 @@ else:
     model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./ai_learning_graphs/", learning_rate=0.0003, ent_coef=0.1)
 
 print("🚀 Launching Dark Training...")
-model.learn(total_timesteps=100000, callback=checkpoint_callback, progress_bar=False)
+model.learn(total_timesteps=TOTAL_STEPS, callback=checkpoint_callback, progress_bar=False)
 
 model.save(NEW_BRAIN_FILE)
 print(f"💾 Success! Upgraded brain saved as: {NEW_BRAIN_FILE}")
