@@ -186,7 +186,7 @@ load_level(current_level)
 # Load AI
 print("Loading AI Brain...")
 try:
-    ai_brain = PPO.load("brain3")
+    ai_brain = PPO.load("brain4")
     print("AI Brain Loaded Successfully!")
 except:
     print("Warning: ai_brain.zip not found. Manual play only.")
@@ -225,7 +225,7 @@ while running:
         # Add a print here to debug if it's still stuck!
         # print(f"AI Position: {grid_x}, {grid_y} | Vision: {obs[:5]}") 
         
-        action, _ = ai_brain.predict(obs, deterministic=False)
+        action, _ = ai_brain.predict(obs, deterministic=True)
         
         move_l = action in [1, 4]
         move_r = action in [2, 5]

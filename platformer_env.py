@@ -3,13 +3,15 @@ from gymnasium import spaces
 import numpy as np
 import pygame
 import math
+from torch.utils.tensorboard import SummaryWriter
+print("HELLO! THE FILE IS ACTUALLY RUNNING!")
 
 # --- MATCHING PHYSICS CONSTANTS FROM MAIN.PY ---
 TILE_SIZE = 30
 GRAVITY = 0.8
 JUMP_STRENGTH = -17
 
-# --- 1. THE PLAYER CLASS (Copied from main.py) ---
+# --- 1. THE PLAYER CLASS ---
 class Player:
     def __init__(self, x, y):
         self.rect = pygame.Rect(x, y, 30, 30)
@@ -80,12 +82,12 @@ class PlatformerEnv(gym.Env):
         # 0: Idle, 1: Left, 2: Right, 3: Jump, 4: Jump Left, 5: Jump Right
         self.action_space = spaces.Discrete(6)
         
-        # Vision: 15x15 grid (Radius of 7 = 15 tiles. 15 * 15 = 225)
+        # Vision: 11x11 grid (121)
         self.observation_space = spaces.Box(low=-1.0, high=3.0, shape=(121,), dtype=np.float32)
         
         self.player = Player(0, 0)
         self.level_data = []
-        self.max_steps = 2000 # Give it 700 frames to beat the level
+        self.max_steps = 2000 # Give it 2000 frames to beat the level
 
     def reset(self, seed=None):
         super().reset(seed=seed)
@@ -93,19 +95,19 @@ class PlatformerEnv(gym.Env):
         # Dummy level for testing
         self.level_data = [
             'PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP',
-            'Pkkkk                                                 P',
-            'Pkkkk                                                 P',
             'P                                                     P',
             'P                                                     P',
             'P                                                     P',
             'P                                                     P',
             'P                                                     P',
             'P                                                     P',
-            'P                           1        2       33333    P',
+            'P                                                     P',
+            'P                                                     P',
+            'P                           2        3       4        P',
             'P                           P        PP      PP       P',
             'P                           P                         P',
             'P                           P                         P',
-            'P  S           0            P                         P',
+            'P  S           0     1      P                         P',
             'PPPPPP       PPPP    PP     PKKKKKKKKKKKKKKKKKK       P',
             'PKKKKKKKKKKKKKKKKKKKKKKKKKKKPPPPPPPPPPPPPPPPPPP       P',
             'PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP       P',
@@ -117,7 +119,7 @@ class PlatformerEnv(gym.Env):
             'G                                                     P',
             'G                                                     P',
             'G                                                     P',
-            'G6        5               4                           P',
+            'G6        7               6                5          P',
             'PPPPP    PP     PP      PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP',
             'P                       P',
             'PKKKKKKKKKKKKKKKKKKKKKKKP',
@@ -128,7 +130,7 @@ class PlatformerEnv(gym.Env):
         self.platforms = []
         self.hazards = []
         self.finish_blocks = []
-        temp_waypoints = {} # <--- Use a dictionary to store them temporarily
+        temp_waypoints = {} 
         start_x, start_y = 0, 0
         
         for r, row in enumerate(self.level_data):
@@ -141,10 +143,9 @@ class PlatformerEnv(gym.Env):
                 elif char == 'G': self.finish_blocks.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
                 elif char == 'S': 
                     start_x, start_y = x, y
-                elif char.isdigit(): # <--- If the character is a number 0-9
+                elif char.isdigit(): 
                     temp_waypoints[int(char)] = (c, r) 
                     
-        # Securely lock in the waypoints by their numeric order!
         self.waypoints = [temp_waypoints[i] for i in sorted(temp_waypoints.keys())]
         
         self.player.reset_position(start_x, start_y)
@@ -165,15 +166,13 @@ class PlatformerEnv(gym.Env):
         move_r = action in [2, 5]
         jump = action in [3, 4, 5]
         
-        # The Jump Penalty! Stops the AI from pogo-sticking everywhere.
         if jump:
-            reward -= 0.01
+            reward -= 0.5
             
         # --- 2. RUN REAL PHYSICS ENGINE ---
         self.player.update(self.platforms, [], self.hazards, [], self.finish_blocks, move_l, move_r, jump)
 
         # --- 3. REWARDS & COLLISIONS ---
-        # Did they hit spikes? (Using actual hitbox collision now!)
         for h in self.hazards:
             if self.player.rect.colliderect(h):
                 reward -= 5.0
@@ -181,7 +180,6 @@ class PlatformerEnv(gym.Env):
                 print("AI Died to Spikes!")
                 break
 
-        # Did they touch the Goal?
         for g in self.finish_blocks:
             if self.player.rect.colliderect(g):
                 reward += 1000.0 
@@ -189,33 +187,29 @@ class PlatformerEnv(gym.Env):
                 print("AI BEAT THE LEVEL!")
                 break
 
-        # --- 4. WAYPOINT BREADCRUMBS ---
+        # --- 4. CHECKPOINT BREADCRUMBS ---
         if self.current_wp_index < len(self.waypoints):
             target_x, target_y = self.waypoints[self.current_wp_index]
             
-            # Convert player pixel coordinates into Grid coordinates for the math
             grid_x = self.player.rect.centerx / TILE_SIZE
             grid_y = self.player.rect.centery / TILE_SIZE
             
             dist = math.hypot(target_x - grid_x, target_y - grid_y)
             
-            # Only reward the AI if it beats its previous best distance!
             if dist < self.closest_dist:
                 distance_improvement = self.closest_dist - dist
-                # Reward based on how much closer it got
                 if self.closest_dist != float('inf'):
                     reward += distance_improvement * 2.0 
                 self.closest_dist = dist
             
-            # If AI gets within 1.5 grid blocks of the Waypoint
             if dist < 1.5: 
                 self.current_wp_index += 1 
-                reward += 10.0 # Tasty breadcrumb!
-                self.closest_dist = float('inf') # Reset record for the next waypoint
+                reward += 10.0 
+                self.closest_dist = float('inf') 
                 
-            # --- 5. TIMEOUT CLOCK ---
+        # --- 5. TIMEOUT CLOCK ---
         if self.current_step >= self.max_steps and not done:
-            reward -= 5.0 # Punish it for wasting time
+            reward -= 5.0 
             done = True
             truncated = True
             print("AI Ran out of time!")
@@ -223,36 +217,29 @@ class PlatformerEnv(gym.Env):
         # --- 6. CALCULATE TRUE LEVEL PROGRESS ---
         total_waypoints = len(self.waypoints)
         if total_waypoints > 0:
-            # Calculate exactly what percentage of the waypoints the AI cleared
             progress_percent = (self.current_wp_index / total_waypoints) * 100
         else:
             progress_percent = 0.0
 
-        # We pack this into the 'info' dictionary so your training script 
-        # and TensorBoard can track the AI's actual physical progression
+        # Pass checkpoint data safely out of the environment
         info = {
             "level_progress": progress_percent,
-            "waypoints_cleared": self.current_wp_index
+            "checkpoint_reached": self.current_wp_index
         }
 
-        # Return the observation, reward, done states, and our new info dictionary!
         return self._get_observation(), reward, done, truncated, info
 
     def _get_observation(self):
-        """Creates the 11x11 vision cone around the AI."""
         vision_radius = 5
         obs = []
         
-        # Translate the center of the player's hitbox into a grid coordinate
         int_x = int(self.player.rect.centerx // TILE_SIZE)
         int_y = int(self.player.rect.centery // TILE_SIZE)
         
         for r in range(int_y - vision_radius, int_y + vision_radius + 1):
             for c in range(int_x - vision_radius, int_x + vision_radius + 1):
-                
-                # Check c against the length of the specific row: len(self.level_data[r])
                 if r < 0 or r >= len(self.level_data) or c < 0 or c >= len(self.level_data[r]):
-                    obs.append(1.0) # Wall (Out of bounds)
+                    obs.append(1.0) 
                 else:
                     tile = self.level_data[r][c]
                     if tile == 'P': obs.append(1.0)
@@ -264,7 +251,6 @@ class PlatformerEnv(gym.Env):
         return np.array(obs, dtype=np.float32)
     
     def render(self, mode="human"):
-        """Draws a simple Pygame window to watch the AI learn."""
         if not hasattr(self, 'screen'):
             pygame.init()
             self.cell_size = 25 
@@ -276,7 +262,6 @@ class PlatformerEnv(gym.Env):
 
         self.screen.fill((0, 0, 0))
 
-        # Draw the map
         for r, row in enumerate(self.level_data):
             for c, char in enumerate(row):
                 rect = pygame.Rect(c * self.cell_size, r * self.cell_size, self.cell_size, self.cell_size)
@@ -284,17 +269,72 @@ class PlatformerEnv(gym.Env):
                 elif char == 'K' or char == 'k': pygame.draw.rect(self.screen, (255, 0, 0), rect) 
                 elif char == 'G': pygame.draw.rect(self.screen, (0, 255, 0), rect) 
                 elif char == 'S': pygame.draw.rect(self.screen, (255, 255, 0), rect, 1) 
-                elif char == 'W': pygame.draw.rect(self.screen, (255, 0, 255), rect, 1) # Purple waypoints
-
-        # Draw the AI Player using a converted physical position
+                elif char.isdigit(): pygame.draw.rect(self.screen, (255, 0, 255), rect, 1)
+                
         px = (self.player.rect.x / TILE_SIZE) * self.cell_size
         py = (self.player.rect.y / TILE_SIZE) * self.cell_size
         player_rect = pygame.Rect(int(px), int(py), self.cell_size, self.cell_size)
         pygame.draw.rect(self.screen, (0, 150, 255), player_rect) 
 
         pygame.display.flip()
-        self.clock.tick(60) 
+        self.clock.tick(500) 
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
+
+
+# =====================================================================
+# --- 3. TRAINING LOOP & TENSORBOARD INTEGRATION ---
+# =====================================================================
+# This is the section that actually RUNS the classes defined above!
+if __name__ == "__main__":
+    
+    env = PlatformerEnv()
+    writer = SummaryWriter('runs/platformer_ai_training')
+    
+    num_episodes = 1000
+    log_interval = 10 
+    
+    progress_this_batch = []
+    checkpoints_this_batch = [] 
+    
+    print("Starting AI Training Loop...")
+    
+    for episode in range(num_episodes):
+        obs, _ = env.reset()
+        done = False
+        truncated = False
+        
+        final_progress = 0
+        final_checkpoint = 0
+        
+        while not (done or truncated):
+            action = env.action_space.sample() # The AI mashing random buttons for testing
+
+            
+            obs, reward, done, truncated, info = env.step(action)
+            
+            # env.render() # Uncomment this if you want to watch the Pygame window!
+            
+            final_progress = info.get("level_progress", 0)
+            final_checkpoint = info.get("checkpoint_reached", 0) 
+            
+        progress_this_batch.append(final_progress)
+        checkpoints_this_batch.append(final_checkpoint)
+        
+        if (episode + 1) % log_interval == 0:
+            
+            avg_progress = np.mean(progress_this_batch)
+            avg_checkpoint = np.mean(checkpoints_this_batch)
+            
+            writer.add_scalar('Progress/Average_Level_Percent', avg_progress, episode)
+            writer.add_scalar('Progress/Average_Waypoint_reached', avg_checkpoint, episode)
+            writer.flush()
+            
+            progress_this_batch = []
+            checkpoints_this_batch = []
+
+    print("Training Finished!")
+    writer.close()
+    pygame.quit()
