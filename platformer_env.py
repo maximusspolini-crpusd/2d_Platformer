@@ -4,7 +4,6 @@ import numpy as np
 import pygame
 import math
 from torch.utils.tensorboard import SummaryWriter
-print("HELLO! THE FILE IS ACTUALLY RUNNING!")
 
 # --- MATCHING PHYSICS CONSTANTS FROM MAIN.PY ---
 TILE_SIZE = 30
@@ -83,7 +82,7 @@ class PlatformerEnv(gym.Env):
         self.action_space = spaces.Discrete(6)
         
         # Vision: 11x11 grid (121)
-        self.observation_space = spaces.Box(low=-1.0, high=3.0, shape=(121,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-1.0, high=3.0, shape=(361,), dtype=np.float32)
         
         self.player = Player(0, 0)
         self.level_data = []
@@ -103,11 +102,11 @@ class PlatformerEnv(gym.Env):
             'P                                                     P',
             'P                                                     P',
             'P                                                     P',
-            'P                           2        3       4        P',
+            'P                           2        33      44       P',
             'P                           P        PP      PP       P',
             'P                           P                         P',
             'P                           P                         P',
-            'P  S           0     1      P                         P',
+            'P  S         0000    11     P                         P',
             'PPPPPP       PPPP    PP     PKKKKKKKKKKKKKKKKKK       P',
             'PKKKKKKKKKKKKKKKKKKKKKKKKKKKPPPPPPPPPPPPPPPPPPP       P',
             'PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP       P',
@@ -230,7 +229,7 @@ class PlatformerEnv(gym.Env):
         return self._get_observation(), reward, done, truncated, info
 
     def _get_observation(self):
-        vision_radius = 5
+        vision_radius = 9
         obs = []
         
         int_x = int(self.player.rect.centerx // TILE_SIZE)
@@ -277,7 +276,7 @@ class PlatformerEnv(gym.Env):
         pygame.draw.rect(self.screen, (0, 150, 255), player_rect) 
 
         pygame.display.flip()
-        self.clock.tick(500) 
+        self.clock.tick(60) 
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

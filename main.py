@@ -225,7 +225,7 @@ while running:
         # Add a print here to debug if it's still stuck!
         # print(f"AI Position: {grid_x}, {grid_y} | Vision: {obs[:5]}") 
         
-        action, _ = ai_brain.predict(obs, deterministic=True)
+        action, _ = ai_brain.predict(obs, deterministic=False)
         
         move_l = action in [1, 4]
         move_r = action in [2, 5]

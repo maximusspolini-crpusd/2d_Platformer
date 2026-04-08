@@ -56,8 +56,8 @@ checkpoint_callback = CheckpointCallback(
     name_prefix="ai_marathon_checkpoint"
 )
 
-OLD_BRAIN_FILE = "brain3.zip" # Change to the name of your best save!
-NEW_BRAIN_FILE = "brain4.zip"
+OLD_BRAIN_FILE = "brain4.zip" # Change to the name of your best save!
+NEW_BRAIN_FILE = "brain5.zip"
 
 if os.path.exists(OLD_BRAIN_FILE):
     print(f"Previous brain '{OLD_BRAIN_FILE}' found! Booting it up...")
@@ -66,7 +66,7 @@ else:
     print("No previous brain found. Creating a brand new brain...")
     model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./ai_learning_graphs/", learning_rate=0.0003)
 
-model.learn(total_timesteps=100000, callback=progress_logger, progress_bar=False)
+model.learn(total_timesteps=10000, callback=progress_logger, progress_bar=False)
 
 model.save(NEW_BRAIN_FILE)
 print(f"💾 Success! Upgraded brain saved as: {NEW_BRAIN_FILE}")
